@@ -5,9 +5,9 @@
 #
 # Usage: scripts/install-local.sh [build-tree]
 #
-#   build-tree defaults to "build". Pass "cmake-build-debug" (or whichever
-#   tree CLion is using) to install the debug build instead -- that is the
-#   one you want when attaching a debugger to OpenCPN.
+#   build-tree defaults to "build". Pass another tree, e.g. "build-debug",
+#   to install that build instead -- the Debug tree is the one you want when
+#   attaching a debugger to OpenCPN, since only it carries debug_info.
 #
 set -euo pipefail
 
@@ -23,7 +23,8 @@ fi
 if [[ ! -d "$tree" ]]; then
     echo "No such build tree: $tree" >&2
     echo "Existing trees:" >&2
-    find . -maxdepth 1 -type d \( -name build -o -name 'cmake-build-*' \) \
+    find . -maxdepth 1 -type d \( -name build -o -name 'build-*' \) \
+        ! -name build-deps \
         -printf '    %P\n' >&2
     exit 1
 fi
