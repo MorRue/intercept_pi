@@ -89,6 +89,19 @@ wxWidgets include paths are only wired up in the sub-build that the default
 target triggers. Build the default target (or `tarball`). This matters when
 picking a target in CLion, which offers `intercept_pi` in its list.
 
+**Editing a `CACHE` variable in `Plugin.cmake` does not affect an existing
+build tree.** `set(... CACHE STRING ...)` only assigns when the cache has no
+value, so `CMakeCache.txt` wins on every reconfigure. Either pass `-D` to
+override it, or delete the cache:
+
+    cmake -B build -DOCPN_TEST_REPO=MorRue/intercept-alpha
+
+Check what is actually in force with `grep OCPN_ build/CMakeCache.txt` — the
+configure output prints the selected upload repository too. This applies to
+CLion's `cmake-build-debug/` as well; use "Reset Cache and Reload Project"
+there rather than editing the tree from the shell, since CLion passes its own
+`-D` flags.
+
 Use a separate build tree per configuration: `build/` for Release, and
 CLion's own `cmake-build-debug/` for Debug. Only the Debug tree carries
 `debug_info`, so install from that one when attaching a debugger:
