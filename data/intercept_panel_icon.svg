@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- own-ship track converging on the target -->
+  <path d="M6 58 L34 30" fill="none" stroke="#1a1a1a" stroke-width="4"
+        stroke-linecap="round" stroke-dasharray="7 5"/>
+  <!-- target circle -->
+  <circle cx="40" cy="24" r="13" fill="none" stroke="#1a1a1a" stroke-width="4"/>
+  <!-- crosshair -->
+  <path d="M40 5 L40 15 M40 33 L40 43 M21 24 L31 24 M49 24 L59 24"
+        fill="none" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="40" cy="24" r="4.5" fill="#c8102e"/>
+</svg>
