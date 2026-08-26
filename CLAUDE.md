@@ -34,9 +34,10 @@ symbols — like a `ServiceLoader` entry point.
 - **Never cross-compile Windows with MinGW.** OpenCPN is MSVC-built and the
   plugin exports a C++ class with virtual functions; MinGW and MSVC disagree
   on vtable layout, name mangling and exceptions. It builds, then crashes.
-- **Linux CI builds on `ubuntu-22.04`, not 24.04**, for an older glibc so the
-  artifact loads on more crew machines. Development is on 24.04 — do not ship
-  the locally built `.so`.
+- **Linux CI builds on `ubuntu-22.04`**, for an older glibc so the artifact
+  loads on more crew machines. A development machine will generally have a
+  newer glibc than that, so never ship a locally built `.so` — release
+  artifacts come from CI.
 - **GPLv3+**, inherited from the template.
 
 ## State
@@ -116,11 +117,27 @@ trees and configure again; git itself survives a rename untouched.
 
 - **The Windows CI job has never run.** `.github/workflows/build.yml` and
   `ci/github-build-win.bat` were written from the AppVeyor script, not
-  inherited. Linux is verified locally. Expect a round or two of fixing.
-- `gh` is not authenticated — `gh auth login` is interactive and must be run
-  by hand. Pushing over HTTPS otherwise needs a personal access token.
+  inherited. The Linux build is verified; Windows has never been attempted.
+  Expect a round or two of fixing.
+- **This will be developed on a sandbox machine** that reaches GitHub through
+  a per-repository *deploy key*. Deploy keys authenticate git over SSH but not
+  the GitHub API, so `gh` cannot work there at all — no pull requests, no
+  issues. Anything needing the API happens on the Mac. See the `homelab` repo,
+  ADR-0009.
 - The `OCPN_*_REPO` values in `Plugin.cmake` name Cloudsmith repositories
   under `MorRue/` that do not exist yet. Harmless: the upload step only runs
   when CI has Cloudsmith credentials.
 - `po/` still holds the template's translations. Harmless — unmatched
   strings fall back to English — but stale.
+
+## Next
+
+1. **Push and watch the Windows CI job.** It is the largest unknown and only
+   a push reveals it. The Linux build is already verified.
+2. **The case-entry dialog** — position in DD/DDM/DMS, time of report, craft
+   type, POB. Replaces the placeholder message box in
+   `OnToolbarToolCallback()` and is the gate to everything in the IAMSAR list
+   above.
+3. **Decide the wind/current source** before datum ageing is written; the
+   three options are weighed in "Planned direction" above, and the choice
+   shapes what the dialog needs to collect.
