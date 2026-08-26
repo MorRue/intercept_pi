@@ -40,8 +40,9 @@ symbols — like a `ServiceLoader` entry point.
 
 ## State
 
-Working skeleton. Registers a toolbar button, subscribes to
-`WANTS_NMEA_EVENTS` for own-ship position, and displays that position on
+Working skeleton, confirmed loading in OpenCPN 5.8.4 on Linux — it appears
+in Options > Plugins and its toolbar button renders. It subscribes to
+`WANTS_NMEA_EVENTS` for own-ship position and displays that position on
 click. This is a placeholder that proves the toolbar wiring and the position
 feed — the two things every later feature depends on.
 
@@ -81,6 +82,18 @@ is a choice.
 Then restart OpenCPN and enable under Options > Plugins. Plugin load
 failures are silent in the GUI — use `opencpn -l debug` to see them.
 
+**Do not build the `intercept_pi` target on its own** — it fails with
+"wx/wxprec.h: No such file". The template configures in two phases and the
+wxWidgets include paths are only wired up in the sub-build that the default
+target triggers. Build the default target (or `tarball`). This matters when
+picking a target in CLion, which offers `intercept_pi` in its list.
+
+Use a separate build tree per configuration: `build/` for Release, and
+CLion's own `cmake-build-debug/` for Debug. Only the Debug tree carries
+`debug_info`, so install from that one when attaching a debugger:
+
+    ./scripts/install-local.sh cmake-build-debug
+
 ## Open items
 
 - **The Windows CI job has never run.** `.github/workflows/build.yml` and
@@ -88,6 +101,6 @@ failures are silent in the GUI — use `opencpn -l debug` to see them.
   inherited. Linux is verified locally. Expect a round or two of fixing.
 - No git remote yet; `gh auth login` is interactive and must be run by hand.
 - `PKG_HOMEPAGE` in `Plugin.cmake` is still `https://github.com/CHANGEME/...`
-  and `PKG_AUTHOR` is `"ich"` from git config. Both are crew-facing.
+  — needs the real GitHub username. `PKG_AUTHOR` is set to "momo".
 - `po/` still holds the template's translations. Harmless — unmatched
   strings fall back to English — but stale.

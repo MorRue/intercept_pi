@@ -45,7 +45,7 @@ in distress: enter the reported position and time, and the plugin gives
 bearing, distance and estimated time of arrival from own ship.
 ]=])
 
-set(PKG_AUTHOR "ich")
+set(PKG_AUTHOR "momo")
 set(PKG_IS_OPEN_SOURCE "yes")
 set(PKG_HOMEPAGE https://github.com/CHANGEME/intercept_pi)
 set(PKG_INFO_URL https://github.com/CHANGEME/intercept_pi)
