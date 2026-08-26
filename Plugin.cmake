@@ -12,17 +12,22 @@
 
 # -------- Options ----------
 
+# Cloudsmith repositories that CI uploads built artifacts to. They do not
+# exist yet; the upload step is skipped unless CI has Cloudsmith
+# credentials, so builds are unaffected until then. Previously these named
+# opencpn/* -- the project's own repositories, which we cannot upload to.
+
 set(OCPN_TEST_REPO
-    "opencpn/intercept-alpha"
+    "MorRue/intercept-alpha"
     CACHE STRING "Default repository for untagged builds"
 )
 set(OCPN_BETA_REPO
-    "opencpn/intercept-beta"
+    "MorRue/intercept-beta"
     CACHE STRING
     "Default repository for tagged builds matching 'beta'"
 )
 set(OCPN_RELEASE_REPO
-    "opencpn/intercept-prod"
+    "MorRue/intercept-prod"
     CACHE STRING
     "Default repository for tagged builds not matching 'beta'"
 )
@@ -47,8 +52,8 @@ bearing, distance and estimated time of arrival from own ship.
 
 set(PKG_AUTHOR "momo")
 set(PKG_IS_OPEN_SOURCE "yes")
-set(PKG_HOMEPAGE https://github.com/CHANGEME/intercept_pi)
-set(PKG_INFO_URL https://github.com/CHANGEME/intercept_pi)
+set(PKG_HOMEPAGE https://github.com/MorRue/intercept_pi)
+set(PKG_INFO_URL https://github.com/MorRue/intercept_pi)
 
 set(SRC
     src/intercept_pi.h

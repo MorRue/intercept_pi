@@ -9,7 +9,8 @@ last known position is not the course to steer, because the target drifts
 between the report and arrival.
 
 The name is deliberately neutral — it describes the mathematics, not the
-use case.
+use case. The GitHub repository is named `intercept_pi` for the same
+reason.
 
 ## Author background
 
@@ -99,8 +100,10 @@ CLion's own `cmake-build-debug/` for Debug. Only the Debug tree carries
 - **The Windows CI job has never run.** `.github/workflows/build.yml` and
   `ci/github-build-win.bat` were written from the AppVeyor script, not
   inherited. Linux is verified locally. Expect a round or two of fixing.
-- No git remote yet; `gh auth login` is interactive and must be run by hand.
-- `PKG_HOMEPAGE` in `Plugin.cmake` is still `https://github.com/CHANGEME/...`
-  — needs the real GitHub username. `PKG_AUTHOR` is set to "momo".
+- `gh` is not authenticated — `gh auth login` is interactive and must be run
+  by hand. Pushing over HTTPS otherwise needs a personal access token.
+- The `OCPN_*_REPO` values in `Plugin.cmake` name Cloudsmith repositories
+  under `MorRue/` that do not exist yet. Harmless: the upload step only runs
+  when CI has Cloudsmith credentials.
 - `po/` still holds the template's translations. Harmless — unmatched
   strings fall back to English — but stale.
