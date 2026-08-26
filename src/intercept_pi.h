@@ -4,7 +4,7 @@
  * Computes a course to steer onto a reported position, for use when closing
  * a vessel in distress.
  *
- * Copyright (C) 2026
+ * Copyright (C) 2026 momo
  * License: GPLv3+  (see COPYING)
  ******************************************************************************/
 
