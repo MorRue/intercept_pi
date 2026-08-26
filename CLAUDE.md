@@ -86,8 +86,8 @@ failures are silent in the GUI — use `opencpn -l debug` to see them.
 **Do not build the `intercept_pi` target on its own** — it fails with
 "wx/wxprec.h: No such file". The template configures in two phases and the
 wxWidgets include paths are only wired up in the sub-build that the default
-target triggers. Build the default target (or `tarball`). This matters when
-picking a target in CLion, which offers `intercept_pi` in its list.
+target triggers. Build the default target (or `tarball`). Any tool that lists
+targets will offer `intercept_pi` — it is not a usable entry point.
 
 **Editing a `CACHE` variable in `Plugin.cmake` does not affect an existing
 build tree.** `set(... CACHE STRING ...)` only assigns when the cache has no
@@ -97,16 +97,20 @@ override it, or delete the cache:
     cmake -B build -DOCPN_TEST_REPO=MorRue/intercept-alpha
 
 Check what is actually in force with `grep OCPN_ build/CMakeCache.txt` — the
-configure output prints the selected upload repository too. This applies to
-CLion's `cmake-build-debug/` as well; use "Reset Cache and Reload Project"
-there rather than editing the tree from the shell, since CLion passes its own
-`-D` flags.
+configure output prints the selected upload repository too. Do this in every
+build tree; each carries its own cache.
 
-Use a separate build tree per configuration: `build/` for Release, and
-CLion's own `cmake-build-debug/` for Debug. Only the Debug tree carries
-`debug_info`, so install from that one when attaching a debugger:
+Use a separate build tree per configuration. Only a Debug tree carries
+`debug_info`, so build and install from that one when attaching a debugger:
 
-    ./scripts/install-local.sh cmake-build-debug
+    cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug
+    cmake --build build-debug -j$(nproc)
+    ./scripts/install-local.sh build-debug
+
+`build-*` is gitignored, so any number of trees can coexist. **A build tree
+cannot be moved or renamed** — CMake stores absolute paths in the cache and
+refuses to reconfigure. If this directory is ever renamed, delete the build
+trees and configure again; git itself survives a rename untouched.
 
 ## Open items
 
