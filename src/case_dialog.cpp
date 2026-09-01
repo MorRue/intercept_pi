@@ -155,6 +155,7 @@ void CaseDialog::OnOK(wxCommandEvent& WXUNUSED(event)) {
   m_case.craft_type = m_craft_choice->GetStringSelection();
   m_case.pob = m_pob_ctrl->GetValue();
   m_case.grib_file_path = m_grib_path_ctrl->GetValue();
+  m_case.FinalizeDatum();
 
   EndModal(wxID_OK);
 }
