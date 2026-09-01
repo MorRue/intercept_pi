@@ -1,7 +1,0 @@
-{
-  "name": "intercept-pi",
-  "version-string": "0.0.0",
-  "description": "Windows CI dependency manifest — wxWidgets 3.2 for the MSVC Win32 build",
-  "builtin-baseline": "30ef65cad98f08e7197c9a1656fbd871bcb72f2d",
-  "dependencies": ["wxwidgets"]
-}
