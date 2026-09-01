@@ -37,6 +37,33 @@ include(PluginCompiler)
 add_library(${CMAKE_PROJECT_NAME} SHARED EXCLUDE_FROM_ALL ${SRC})
 include_directories(BEFORE ${CMAKE_BINARY_DIR}/include)
 
+# -------- Standalone GribReader test --------
+#
+# Links src/grib_reader.cpp directly, without the OpenCPN plugin SDK or the
+# wxWidgets GUI toolkit: GribReader's public API only needs wxBase types
+# (wxFileName, wxDateTime), so this looks up wxWidgets itself instead of
+# going through the plugin's own wx setup, which only runs once BUILD_TYPE
+# is set (see the two-phase configure note in CLAUDE.md) and pulls in the
+# full GUI component list this test does not need.
+find_package(wxWidgets COMPONENTS base)
+if (wxWidgets_FOUND)
+  include(${wxWidgets_USE_FILE})
+  add_executable(test_grib_reader test/test_grib_reader.cpp src/grib_reader.cpp)
+  target_include_directories(test_grib_reader PRIVATE src)
+  # The system wx headers found above default to a GUI build (wxUSE_GUI=1
+  # in their setup.h); without this, wx/wx.h pulls in GUI class definitions
+  # that emit vtables this test can't link against, since it only pulls in
+  # the wxWidgets base component. `wx-config --cflags base` sets the same
+  # define when used directly.
+  target_compile_definitions(test_grib_reader PRIVATE wxUSE_GUI=0)
+  target_link_libraries(test_grib_reader ${wxWidgets_LIBRARIES})
+  enable_testing()
+  add_test(NAME grib_reader_test
+           COMMAND test_grib_reader "${CMAKE_SOURCE_DIR}/test/data")
+else ()
+  message(WARNING "wxWidgets (base) not found; skipping test_grib_reader")
+endif ()
+
 add_subdirectory("opencpn-libs/${PKG_API_LIB}")
 target_link_libraries(${CMAKE_PROJECT_NAME} ocpn::api)
 if (NOT "${MIN_API_VERSION}" STREQUAL "")

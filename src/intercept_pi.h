@@ -31,6 +31,7 @@ struct Case {
   wxDateTime time_of_report;
   wxString craft_type;
   int pob = 0;  // Persons on board.
+  wxString grib_file_path;  // Empty means no GRIB file was selected.
 };
 
 /** Outcome of parsing one coordinate (latitude or longitude) from text. */

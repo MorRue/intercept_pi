@@ -9,6 +9,7 @@
 #ifndef WX_PRECOMP
 #include <wx/wx.h>
 #endif
+#include <wx/filedlg.h>
 
 #include "case_dialog.h"
 
@@ -59,10 +60,11 @@ CaseDialog::CaseDialog(wxWindow* parent)
       m_position_ctrl(nullptr),
       m_time_ctrl(nullptr),
       m_craft_choice(nullptr),
-      m_pob_ctrl(nullptr) {
+      m_pob_ctrl(nullptr),
+      m_grib_path_ctrl(nullptr) {
   auto* main_sizer = new wxBoxSizer(wxVERTICAL);
 
-  auto* grid = new wxFlexGridSizer(4, 2, 8, 8);
+  auto* grid = new wxFlexGridSizer(5, 2, 8, 8);
   grid->AddGrowableCol(1);
 
   grid->Add(new wxStaticText(this, wxID_ANY, _("Position:")), 0,
@@ -90,6 +92,17 @@ CaseDialog::CaseDialog(wxWindow* parent)
                                wxDefaultSize, wxSP_ARROW_KEYS, 0, 999, 1);
   grid->Add(m_pob_ctrl, 0);
 
+  grid->Add(new wxStaticText(this, wxID_ANY, _("GRIB file (optional):")), 0,
+            wxALIGN_CENTER_VERTICAL);
+  auto* grib_row = new wxBoxSizer(wxHORIZONTAL);
+  m_grib_path_ctrl = new wxTextCtrl(this, wxID_ANY, wxEmptyString,
+                                     wxDefaultPosition, wxDefaultSize,
+                                     wxTE_READONLY);
+  grib_row->Add(m_grib_path_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
+  auto* grib_browse_button = new wxButton(this, wxID_ANY, _("Browse..."));
+  grib_row->Add(grib_browse_button, 0, wxLEFT, 8);
+  grid->Add(grib_row, 1, wxEXPAND);
+
   main_sizer->Add(grid, 1, wxEXPAND | wxALL, 10);
 
   auto* buttons = CreateStdDialogButtonSizer(wxOK | wxCANCEL);
@@ -101,6 +114,18 @@ CaseDialog::CaseDialog(wxWindow* parent)
   // runs instead of (not before) wxDialog's default OnOK -- returning
   // without calling EndModal() is what keeps the dialog open on bad input.
   Bind(wxEVT_BUTTON, &CaseDialog::OnOK, this, wxID_OK);
+  grib_browse_button->Bind(wxEVT_BUTTON, &CaseDialog::OnBrowseGrib, this);
+}
+
+void CaseDialog::OnBrowseGrib(wxCommandEvent& WXUNUSED(event)) {
+  wxFileDialog file_dialog(
+      this, _("Select GRIB file"), wxEmptyString, wxEmptyString,
+      _("GRIB files (*.grb;*.grb2;*.bin)|*.grb;*.grb2;*.bin|All files "
+        "(*.*)|*.*"),
+      wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+  if (file_dialog.ShowModal() == wxID_OK) {
+    m_grib_path_ctrl->SetValue(file_dialog.GetPath());
+  }
 }
 
 void CaseDialog::OnOK(wxCommandEvent& WXUNUSED(event)) {
@@ -129,6 +154,7 @@ void CaseDialog::OnOK(wxCommandEvent& WXUNUSED(event)) {
   m_case.time_of_report = m_time_ctrl->GetValue();
   m_case.craft_type = m_craft_choice->GetStringSelection();
   m_case.pob = m_pob_ctrl->GetValue();
+  m_case.grib_file_path = m_grib_path_ctrl->GetValue();
 
   EndModal(wxID_OK);
 }
