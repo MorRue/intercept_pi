@@ -34,10 +34,9 @@ symbols — like a `ServiceLoader` entry point.
 - **Never cross-compile Windows with MinGW.** OpenCPN is MSVC-built and the
   plugin exports a C++ class with virtual functions; MinGW and MSVC disagree
   on vtable layout, name mangling and exceptions. It builds, then crashes.
-- **Linux CI builds on `ubuntu-22.04`**, for an older glibc so the artifact
-  loads on more crew machines. A development machine will generally have a
-  newer glibc than that, so never ship a locally built `.so` — release
-  artifacts come from CI.
+- **Linux CI builds in a `debian:bookworm` container** (glibc 2.36) so the
+  artifact loads on more crew machines than one built on the newer CI host or
+  a dev box. Never ship a locally built `.so` — release artifacts come from CI.
 - **GPLv3+**, inherited from the template.
 
 ## State
@@ -123,9 +122,12 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Open items
 
-- **CI is red on both platforms and always has been** — see "Next" #1 for the
-  two root causes (missing Windows batch script; wrong wxWidgets package on
-  Linux). No CI artifact has ever been produced. Local Linux builds work.
+- **CI** (`build.yml`): Linux builds in a `debian:bookworm` container (wx 3.2
+  in apt) on every push and PR. Windows (MSVC Win32, prebuilt wxWidgets 3.2.6,
+  gettext from Poedit) also runs on every push/PR for now — it's ~2 min with
+  the wx binaries cached, but it counts 2× against the private-repo Actions
+  budget, so consider narrowing it to tags + `workflow_dispatch` if minutes
+  get tight.
 - **This will be developed on a sandbox machine** that reaches GitHub through
   a per-repository *deploy key*. Deploy keys authenticate git over SSH but not
   the GitHub API, so `gh` cannot work there at all — no pull requests, no
@@ -139,22 +141,7 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Next
 
-1. **Fix CI — it has never built on either platform.** `build.yml` runs on
-   every push and both jobs fail in ~30 s:
-   - **Windows:** `ci\github-build-win.bat` doesn't exist. The workflow was
-     written from the AppVeyor script but the batch script it calls was never
-     created. `shipdriver_pi` upstream (the `shipdriver` remote) has a working
-     one to crib from.
-   - **Linux:** `apt-get install libwxgtk3.2-dev` — Ubuntu 22.04 ships wx 3.0,
-     not 3.2, so this exits 100. The `ci/circleci-build-debian.sh` /
-     `ci/download-wx32.sh` scripts already know the fix (the community's
-     prebuilt wx 3.2 at `dl.cloudsmith.io/public/alec-leamas/wxwidgets-32`);
-     `build.yml` just doesn't use them.
-   "The Linux build is verified" elsewhere in this file means *local* builds —
-   CI has never produced an artifact. Fixing this is a human-supervised loop
-   (push → read the CI log → fix → repeat); the orchestrator can't see CI
-   results mid-run.
-2. **GRIB wind/current — an optional source in the case dialog.** Bring back a
+1. **GRIB wind/current — an optional source in the case dialog.** Bring back a
    GRIB reader (restore the record classes ShipDriver had, or vendor a small
    one) and add a "GRIB file" picker to `CaseDialog` — optional, no file is a
    valid state. Expose a lookup: given lat/lon and a time, return 10 m wind
@@ -162,6 +149,6 @@ trees and configure again; git itself survives a rename untouched.
    No datum ageing yet — just the reader and the dialog field, with the
    `Case` struct carrying the chosen file path (or none). Everything must
    still build and the dialog still work with no GRIB selected.
-3. **Datum ageing** (Planned direction #2), once #2 lands: age the reported
+2. **Datum ageing** (Planned direction #2), once #1 lands: age the reported
    position forward to now using current + leeway, falling back to zero drift
    when there's no GRIB and no manual set & drift.
