@@ -11,9 +11,24 @@ on:
 
 jobs:
   linux:
-    name: Linux (Ubuntu 22.04, wxWidgets 3.2)
-    runs-on: ubuntu-22.04
+    name: Linux (Debian bookworm, wxWidgets 3.2)
+    runs-on: ubuntu-latest
+    # bookworm ships wxWidgets 3.2 in apt and has an older glibc (2.36) than
+    # the ubuntu-latest runner, so the artifact loads on more crew machines.
+    # Ubuntu 22.04 has no wx 3.2 package at all — that was the old failure.
+    container: debian:bookworm
     steps:
+      - name: Install toolchain and wxWidgets 3.2
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            ca-certificates git lsb-release pkg-config \
+            build-essential cmake gettext \
+            libwxgtk3.2-dev libwxgtk-webview3.2-dev libwxgtk-media3.2-dev \
+            libgtk-3-dev libglu1-mesa-dev \
+            libbz2-dev libcurl4-openssl-dev libexpat1-dev libcairo2-dev \
+            libarchive-dev liblzma-dev liblz4-dev libexif-dev libelf-dev
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -21,15 +36,8 @@ jobs:
           # so the full history and tags must be present.
           fetch-depth: 0
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake gettext \
-            libwxgtk3.2-dev libwxgtk-webview3.2-dev libwxgtk-media3.2-dev \
-            libgtk-3-dev libglu1-mesa-dev \
-            libbz2-dev libcurl4-openssl-dev libexpat1-dev libcairo2-dev \
-            libarchive-dev liblzma-dev liblz4-dev libexif-dev libelf-dev
+      - name: Mark the workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -43,27 +51,72 @@ jobs:
           name: linux-x86_64-tarball
           path: build/*.tar.gz
           if-no-files-found: error
+          retention-days: 14
 
   windows:
     name: Windows (MSVC 2022, Win32, wxWidgets 3.2)
     runs-on: windows-2022
+    env:
+      WX_VER: 3.2.6
+      # PluginLibs.cmake checks for %WXWIN%; win_deps normally sets it.
+      WXWIN: ${{ github.workspace }}\cache\wxWidgets
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      # win_deps.bat downloads ~200MB of prebuilt wxWidgets into cache/.
-      # Caching it turns a ~6 minute step into seconds.
-      - name: Cache wxWidgets
+      - name: MSVC dev environment (x86 / Win32)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Cache prebuilt wxWidgets
+        id: wxcache
         uses: actions/cache@v4
         with:
           path: cache
-          key: wx-3.2.6-vc14x-win32
+          key: wxwidgets-${{ env.WX_VER }}-vc14x-win32
+
+      - name: Download prebuilt wxWidgets ${{ env.WX_VER }}
+        if: steps.wxcache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $base = "https://github.com/wxWidgets/wxWidgets/releases/download/v$env:WX_VER"
+          New-Item -ItemType Directory -Force -Path $env:WXWIN | Out-Null
+          foreach ($f in @(
+              "wxWidgets-$env:WX_VER-headers.7z",
+              "wxMSW-${env:WX_VER}_vc14x_Dev.7z",
+              "wxMSW-${env:WX_VER}_vc14x_ReleaseDLL.7z")) {
+            Invoke-WebRequest -Uri "$base/$f" -OutFile $f
+            7z x -aoa $f "-o$env:WXWIN"
+          }
+          Rename-Item "$env:WXWIN\lib\vc14x_dll" vc_dll
+
+      - name: Install gettext (via Poedit's bundled tools)
+        shell: pwsh
+        run: |
+          choco install poedit --no-progress -y
+          $bin = Get-ChildItem -Path 'C:\Program Files*\Poedit' -Recurse -Filter msgmerge.exe |
+                 Select-Object -First 1 -ExpandProperty DirectoryName
+          if (-not $bin) { throw 'msgmerge.exe not found after installing Poedit' }
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          & "$bin\msgmerge.exe" --version | Select-Object -First 1
+          "GETTEXT_BIN=$bin" | Add-Content -Path $env:GITHUB_ENV
+
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake -S . -B build
+          -G "Visual Studio 17 2022" -A Win32 -T v143
+          -DCMAKE_BUILD_TYPE=Release
+          -DwxWidgets_ROOT_DIR="$env:WXWIN"
+          -DwxWidgets_LIB_DIR="$env:WXWIN\lib\vc_dll"
+          -DGETTEXT_MSGMERGE_EXECUTABLE="$env:GETTEXT_BIN\msgmerge.exe"
+          -DGETTEXT_MSGFMT_EXECUTABLE="$env:GETTEXT_BIN\msgfmt.exe"
 
       - name: Build tarball
-        shell: cmd
-        run: ci\github-build-win.bat
+        run: cmake --build build --target tarball --config Release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -71,3 +124,4 @@ jobs:
           name: windows-win32-tarball
           path: build/*.tar.gz
           if-no-files-found: error
+          retention-days: 14
