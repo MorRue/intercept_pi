@@ -19,10 +19,12 @@
 
 /**
  * Collects the data for a new search-and-rescue case: reported position,
- * time of report, craft type and persons on board. On OK, the position is
- * validated with ParseCoordinate(); bad input shows an error message box
- * and keeps the dialog open, so GetCase() is only meaningful once
- * ShowModal() has returned wxID_OK.
+ * time of report, craft type, persons on board, and an optional GRIB file
+ * to source wind/current from. On OK, the position is validated with
+ * ParseCoordinate(); bad input shows an error message box and keeps the
+ * dialog open, so GetCase() is only meaningful once ShowModal() has
+ * returned wxID_OK. The GRIB file is optional -- leaving it unset is a
+ * valid state and Case::grib_file_path stays empty.
  */
 class CaseDialog : public wxDialog {
 public:
@@ -32,11 +34,13 @@ public:
 
 private:
   void OnOK(wxCommandEvent& event);
+  void OnBrowseGrib(wxCommandEvent& event);
 
   wxTextCtrl* m_position_ctrl;
   wxTimePickerCtrl* m_time_ctrl;
   wxChoice* m_craft_choice;
   wxSpinCtrl* m_pob_ctrl;
+  wxTextCtrl* m_grib_path_ctrl;
 
   Case m_case;
 };
