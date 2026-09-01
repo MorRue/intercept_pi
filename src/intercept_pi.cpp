@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "case_dialog.h"
 #include "config.h"
 #include "intercept_pi.h"
 #include "plug_utils.h"
@@ -271,20 +272,6 @@ void intercept_pi::SetPositionFix(PlugIn_Position_Fix& pfix) {
 }
 
 void intercept_pi::OnToolbarToolCallback(int id) {
-  // Placeholder: proves the toolbar wiring and the own-ship feed both work.
-  // Replaced by the case-entry dialog in the next step.
-  wxString msg;
-  if (m_have_fix) {
-    msg = wxString::Format(
-        _("Own ship position\n\n"
-          "Latitude:   %s\n"
-          "Longitude:  %s\n"
-          "COG: %.1f deg    SOG: %.1f kn"),
-        toSDMM_PlugIn(1, m_own_lat, true), toSDMM_PlugIn(2, m_own_lon, true),
-        m_own_cog, m_own_sog);
-  } else {
-    msg = _("No position fix received yet.\n\n"
-            "Connect a GPS source under Options > Connections.");
-  }
-  wxMessageBox(msg, _("Intercept"), wxOK | wxICON_INFORMATION, m_parent_window);
+  CaseDialog dlg(m_parent_window);
+  if (dlg.ShowModal() == wxID_OK) m_case = dlg.GetCase();
 }
