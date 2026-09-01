@@ -141,14 +141,10 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Next
 
-1. **GRIB wind/current — an optional source in the case dialog.** Bring back a
-   GRIB reader (restore the record classes ShipDriver had, or vendor a small
-   one) and add a "GRIB file" picker to `CaseDialog` — optional, no file is a
-   valid state. Expose a lookup: given lat/lon and a time, return 10 m wind
-   (speed + direction) and surface current (set + drift), or "not available".
-   No datum ageing yet — just the reader and the dialog field, with the
-   `Case` struct carrying the chosen file path (or none). Everything must
-   still build and the dialog still work with no GRIB selected.
-2. **Datum ageing** (Planned direction #2), once #1 lands: age the reported
-   position forward to now using current + leeway, falling back to zero drift
-   when there's no GRIB and no manual set & drift.
+1. **Datum ageing** (Planned direction #2): age the reported position forward
+   to now using surface current + leeway (Allen & Plourde coefficients per
+   craft type). Wind/current comes from the optional GRIB file
+   (`GribReader::LookupWind` / `LookupCurrent`, `Case::grib_file_path`); with no
+   GRIB and no manual set & drift, drift is zero and datum = reported position.
+   Compute the aged datum on the `Case`; no uncertainty radius or intercept
+   course yet.
