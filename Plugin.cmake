@@ -62,6 +62,8 @@ set(SRC
     src/case_dialog.cpp
     src/grib_reader.h
     src/grib_reader.cpp
+    src/datum_age.h
+    src/datum_age.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )
