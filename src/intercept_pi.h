@@ -17,6 +17,8 @@
 #endif
 #include <wx/datetime.h>
 
+#include <optional>
+
 #include "ocpn_plugin.h"
 
 /** Let OpenCPN choose where the toolbar button lands. */
@@ -80,6 +82,9 @@ private:
   double m_own_lon;
   double m_own_cog;
   double m_own_sog;
+
+  /** The current case, if one has been entered via the case dialog. */
+  std::optional<Case> m_case;
 };
 
 #endif  // INTERCEPT_PI_H__
