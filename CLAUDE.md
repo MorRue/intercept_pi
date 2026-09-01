@@ -48,24 +48,32 @@ in Options > Plugins and its toolbar button renders. It subscribes to
 click. This is a placeholder that proves the toolbar wiring and the position
 feed — the two things every later feature depends on.
 
-`src/` is just `intercept_pi.{h,cpp}` plus the `plug_utils` icon helpers.
-ShipDriver's AIS maker, GRIB record classes and simulator GUI were deleted.
-The GRIB classes will likely return when drift modelling starts.
+`src/` is `intercept_pi.{h,cpp}`, `case_dialog.{h,cpp}` (the case-intake
+dialog, merged), and the `plug_utils` icon helpers. ShipDriver's AIS maker,
+GRIB record classes and simulator GUI were deleted; the GRIB classes come
+back with the drift work (see "Next").
 
 ## Planned direction (IAMSAR Vol. III mechanics)
 
-1. Case intake: position (DD/DDM/DMS), time of report, craft type, POB
+1. Case intake: position (DD/DDM/DMS), time of report, craft type, POB — done
 2. Datum: age the position forward using surface current + leeway
-   (Allen & Plourde coefficients — rubber vs. wooden boats differ a lot)
+   (Allen & Plourde coefficients — rubber vs. wooden boats differ a lot).
+   With no environmental data at all, datum = reported position.
 3. Uncertainty radius: position error + drift error
 4. Intercept: course onto a *moving* datum, ETA that updates as it drifts
 5. Search patterns: expanding square, sector, parallel track, as routes
 
-Wind/current source is undecided. Options weighed: query the existing
-`grib_pi` over OpenCPN's JSON message bus (no download code, no keys —
-this is how `weather_routing_pi` does it), fetch CMEMS/Copernicus directly
-(better Mediterranean currents, needs credentials and offline caching), or
-manual set & drift entry (crude, works with no connectivity).
+**Wind/current source — decided: an optional operator-selected GRIB file.**
+The case dialog has a "GRIB file" picker. If a file is given, datum ageing
+reads 10 m wind and surface current from it at the datum position and time.
+If none is given, the operator may enter set & drift by hand, and every step
+downstream must still work with no environmental input (treat drift as zero,
+widen the uncertainty radius to say so). Chosen for: standard format, works
+offline with a GRIB downloaded ashore, no dependency on `grib_pi` being
+installed, no credentials. Querying `grib_pi` over the JSON message bus
+remains a possible *additional* source later. Direct CMEMS/Copernicus fetch
+is rejected — credentials and offline caching for little gain over a
+pre-downloaded GRIB.
 
 ## Portability rules
 
@@ -115,10 +123,9 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Open items
 
-- **The Windows CI job has never run.** `.github/workflows/build.yml` and
-  `ci/github-build-win.bat` were written from the AppVeyor script, not
-  inherited. The Linux build is verified; Windows has never been attempted.
-  Expect a round or two of fixing.
+- **CI is red on both platforms and always has been** — see "Next" #1 for the
+  two root causes (missing Windows batch script; wrong wxWidgets package on
+  Linux). No CI artifact has ever been produced. Local Linux builds work.
 - **This will be developed on a sandbox machine** that reaches GitHub through
   a per-repository *deploy key*. Deploy keys authenticate git over SSH but not
   the GitHub API, so `gh` cannot work there at all — no pull requests, no
@@ -132,12 +139,29 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Next
 
-1. **Push and watch the Windows CI job.** It is the largest unknown and only
-   a push reveals it. The Linux build is already verified.
-2. **The case-entry dialog** — position in DD/DDM/DMS, time of report, craft
-   type, POB. Replaces the placeholder message box in
-   `OnToolbarToolCallback()` and is the gate to everything in the IAMSAR list
-   above.
-3. **Decide the wind/current source** before datum ageing is written; the
-   three options are weighed in "Planned direction" above, and the choice
-   shapes what the dialog needs to collect.
+1. **Fix CI — it has never built on either platform.** `build.yml` runs on
+   every push and both jobs fail in ~30 s:
+   - **Windows:** `ci\github-build-win.bat` doesn't exist. The workflow was
+     written from the AppVeyor script but the batch script it calls was never
+     created. `shipdriver_pi` upstream (the `shipdriver` remote) has a working
+     one to crib from.
+   - **Linux:** `apt-get install libwxgtk3.2-dev` — Ubuntu 22.04 ships wx 3.0,
+     not 3.2, so this exits 100. The `ci/circleci-build-debian.sh` /
+     `ci/download-wx32.sh` scripts already know the fix (the community's
+     prebuilt wx 3.2 at `dl.cloudsmith.io/public/alec-leamas/wxwidgets-32`);
+     `build.yml` just doesn't use them.
+   "The Linux build is verified" elsewhere in this file means *local* builds —
+   CI has never produced an artifact. Fixing this is a human-supervised loop
+   (push → read the CI log → fix → repeat); the orchestrator can't see CI
+   results mid-run.
+2. **GRIB wind/current — an optional source in the case dialog.** Bring back a
+   GRIB reader (restore the record classes ShipDriver had, or vendor a small
+   one) and add a "GRIB file" picker to `CaseDialog` — optional, no file is a
+   valid state. Expose a lookup: given lat/lon and a time, return 10 m wind
+   (speed + direction) and surface current (set + drift), or "not available".
+   No datum ageing yet — just the reader and the dialog field, with the
+   `Case` struct carrying the chosen file path (or none). Everything must
+   still build and the dialog still work with no GRIB selected.
+3. **Datum ageing** (Planned direction #2), once #2 lands: age the reported
+   position forward to now using current + leeway, falling back to zero drift
+   when there's no GRIB and no manual set & drift.
