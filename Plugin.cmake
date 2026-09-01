@@ -60,6 +60,8 @@ set(SRC
     src/intercept_pi.cpp
     src/case_dialog.h
     src/case_dialog.cpp
+    src/grib_reader.h
+    src/grib_reader.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )
