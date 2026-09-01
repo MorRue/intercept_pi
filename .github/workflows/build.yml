@@ -69,6 +69,10 @@ jobs:
         with:
           arch: x86
 
+      - name: Install gettext
+        # the tarball target's second configure pass compiles the po/ catalogs
+        run: choco install gettext --no-progress -y
+
       - name: wxWidgets 3.2 via vcpkg (x86-windows)
         uses: lukka/run-vcpkg@v11
         with:
