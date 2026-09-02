@@ -32,6 +32,22 @@ struct Case {
   wxString craft_type;
   int pob = 0;  // Persons on board.
   wxString grib_file_path;  // Empty means no GRIB file was selected.
+
+  // Set by FinalizeDatum(): the reported position aged forward to now.
+  // Equal to (lat, lon) with a zero elapsed until FinalizeDatum() runs, and
+  // still equal to it afterwards if there was no environmental data to
+  // drift with -- see datum_age.h.
+  double aged_lat = 0.0;
+  double aged_lon = 0.0;
+  wxTimeSpan elapsed;
+
+  /**
+   * Ages (lat, lon) forward to now using GribReader on grib_file_path when
+   * one is set, otherwise zero drift, and stores the result in aged_lat/
+   * aged_lon/elapsed. Call once the rest of the case is populated -- i.e.
+   * when the case is finalised, from CaseDialog::OnOK.
+   */
+  void FinalizeDatum();
 };
 
 /** Outcome of parsing one coordinate (latitude or longitude) from text. */
