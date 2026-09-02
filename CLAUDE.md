@@ -56,10 +56,19 @@ back with the drift work (see "Next").
 
 1. Case intake: position (DD/DDM/DMS), time of report, craft type, POB — done
 2. Datum: age the position forward using surface current + leeway
-   (Allen & Plourde coefficients — rubber vs. wooden boats differ a lot).
-   With no environmental data at all, datum = reported position.
+   (Allen & Plourde coefficients). With no environmental data at all,
+   datum = reported position. **The leeway model in `src/datum_age.cpp` is
+   NOT verified — see `docs/LEEWAY_NEEDS_VERIFICATION.md`; `kLeewayRubber = 0.36`
+   is almost certainly ~10× too large.** Do not tighten it or build on its
+   numbers without a human checking them against IAMSAR / Allen & Plourde.
 3. Uncertainty radius: position error + drift error
-4. Intercept: course onto a *moving* datum, ETA that updates as it drifts
+4. Intercept: course onto a *moving* datum, ETA that updates as it drifts.
+   **Leeway drift is optional in this calculation.** When wind/current data is
+   available, compute the datum both *with* and *without* leeway drift, and let
+   the operator toggle (a checkbox) which one the displayed intercept route
+   uses — so an operator who doesn't trust the unverified leeway model can fall
+   back to current-only, and with no environmental data at all the route is
+   just bearing-to-reported-position. Wind and drift are both optional inputs.
 5. Search patterns: expanding square, sector, parallel track, as routes
 
 **Wind/current source — decided: an optional operator-selected GRIB file.**
