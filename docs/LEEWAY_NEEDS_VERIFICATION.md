@@ -2,17 +2,18 @@
 
 **Status: the datum-ageing drift model in `src/datum_age.cpp` was written
 autonomously. The method has now been checked against IAMSAR Manual Vol II & III
-(see below) and is structurally sound, but the leeway *coefficient*
-`0.36` is wrong by 5–13× and must be fixed. A person with SAR domain
-knowledge should confirm the replacement value and the simplifications before
-operational use.**
+(see below) and is structurally sound. The default leeway coefficient was
+`0.36` (5–13× too large); it is now `0.036`, pinned by
+`test/test_reference_iamsar.cpp`. A person with SAR domain knowledge should
+still confirm that value and the simplifications (two craft buckets, no
+divergence) before operational use.**
 
-## What the code does now (`src/datum_age.cpp`, on `main`)
+## What the code does now (`src/datum_age.cpp`)
 
 | thing | value / method in code |
 |---|---|
 | leeway speed, "wooden" craft_type | `0.04 × wind speed` (kt), no offset |
-| leeway speed, anything else (default) | `0.36 × wind speed` (kt), no offset |
+| leeway speed, anything else (default) | `0.036 × wind speed` (kt), no offset |
 | leeway direction | `wind FROM + 180°` — pure downwind, no divergence |
 | craft classification | `craft_type.Lower().Contains("wooden")` else default |
 | drift | vector sum of current + leeway (`CombineVectors`) |
@@ -34,7 +35,7 @@ IAMSAR Vol III §3 (printed p.3-16/17) and Vol II §4.4 / Appendix K:
 So the structure of `ComputeAgedDatum` is the IAMSAR datum method. The problems
 are all in the leeway numbers.
 
-### `0.36` is wrong — leeway is single-digit percent of wind speed
+### Leeway is single-digit percent of wind speed (why `0.36` → `0.036`)
 
 IAMSAR Vol II **Figure N-2** ("Leeway of liferafts, survival craft and PIWs",
 *adapted directly from Allen & Plourde 1999, USCG CG-D-08-99* — the same
@@ -53,10 +54,10 @@ reference the code comments cite) and Vol III's "Liferaft leeway" graph
 
 So:
 
-- **The default `0.36` should be roughly `0.03`–`0.07`.** A conservative
-  choice for an unknown liferaft is the no-drogue value, ~`0.07`. `0.036`
-  (a plausible typo for `0.36`) sits in the middle of the raft range and is
-  defensible as a single-value default.
+- **The default is now `0.036`** — mid raft range, a plausible typo fix for
+  `0.36`, defensible as a single-value default. A more conservative choice for
+  an unknown liferaft would be the no-drogue value ~`0.07`; a SAR reviewer
+  should make that call.
 - **`0.04` for "wooden" is about right** — a displacement hull's leeway is
   low, and the Appendix Q fishing vessel comes out at 4.1 %. Keep it, but note
   it's a coincidence of magnitude, not a verified figure for wooden craft
@@ -101,12 +102,33 @@ IAMSAR result:
   divergence distance (DD): 37.5 NM
 ```
 
-The current code has no divergence, so feed it the **pure-downwind** variant
-(leeway 1.3 kt toward 014°T, no ±50°) and expect a datum between the two
-IAMSAR points — roughly **37°44'N, 065°03'W**, drift ≈ 035°T / ≈ 2.6 kt over
-18.75 h ≈ 49 NM. Tolerance ~2 NM (IAMSAR uses manoeuvring-board plotting).
-Also assert the leeway sub-calc: `LookupLeewayCoefficients` × 31.72 kt must be
-≈ 1.3 kt (±0.3), **not** 11.4 kt.
+The current code has no divergence, so feed it the **pure-downwind** variant:
+leeway 1.3 kt toward 014°T (the downwind of ASW 194°T), no ±50°. Vector sum
+with the TWC (1.86 kt toward 057°T):
+
+```
+LW  @ 014°T, 1.3  kt →  x=+0.314  y=+1.261   (x = East, y = North)
+TWC @ 057°T, 1.86 kt →  x=+1.560  y=+1.013
+sum                  →  x=+1.874  y=+2.274
+drift = 2.95 kt @ 039.5°T   over 18.75 h  = 55.3 NM
+datum ≈ 37°52.6'N, 065°00.7'W
+```
+
+(This is **not** the midpoint of the two IAMSAR divergence datums — averaging
+two equal vectors ±50° off a centre bearing gives `L·cos50° ≈ 0.64 L` along
+that bearing, not `L`, so a pure-downwind sum lands *outside* the L/R pair, to
+the north. The earlier draft of this file said "≈ 37°44'N, 065°03'W, between
+the two points" — that was wrong.)
+
+Test it as: `ComputeAgedDatum` must land within **~5 NM** of
+37°52.6'N 065°00.7'W. 5 NM, not 2: the code's own leeway at the fixed 0.036
+coefficient is 0.036 × 31.72 ≈ 1.14 kt, ~0.16 kt short of IAMSAR's textbook
+1.3 kt for this craft, which by itself shifts the datum ~3 NM. The check still
+fails by ~190 NM if the coefficient regresses to 0.36.
+
+Also assert the leeway sub-calc directly: `LookupLeewayCoefficients(<default>)`
+× 31.72 kt must be **≈ 1.3 kt (±0.4)** — passes at 0.036 (1.14 kt), fails hard
+at 0.36 (11.4 kt). This is the tight, unambiguous coefficient check.
 
 ## Sources
 
@@ -120,7 +142,7 @@ Also assert the leeway sub-calc: `LookupLeewayCoefficients` × 31.72 kt must be
   primary source Figure N-2 is adapted from.
 - Allen, A.A. (2005), *Leeway Divergence*, USCG R&D Center CG-D-05-05.
 
-## Until the coefficient is fixed and confirmed
+## Until a SAR reviewer has confirmed the model
 
 The intercept computation must let the operator **turn drift off** — compute
 the datum both with and without leeway whenever wind/current is available, and

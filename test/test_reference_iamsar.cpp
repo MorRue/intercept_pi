@@ -8,23 +8,21 @@
  * must reproduce the example's leeway speed; (b) ComputeAgedDatum, given
  * the example's wind and current, must land near the example's datum.
  *
- * Part (b)'s tolerance is wider than the position-error tolerances used
- * elsewhere (9 NM, not 2): docs/LEEWAY_NEEDS_VERIFICATION.md's suggested
- * datum (37 44'N 065 03'W) is the arithmetic midpoint of IAMSAR's own two
- * divergence-bounded datums (021T/2.21kt and 060T/3.15kt, i.e. downwind
- * +-50 deg), and that midpoint is provably not the point a pure-downwind
- * (0 deg divergence) vector-sum produces: averaging two vectors of equal
- * magnitude L at +-50 deg from a center bearing yields a vector of
- * magnitude L*cos(50deg) (~=0.64L) at the center bearing, not L. Even
- * IAMSAR's own textbook leeway of exactly 1.3 kt at pure downwind (014T)
- * lands ~8.7 NM from that midpoint; this code's 0.036-coefficient leeway
- * (1.14 kt) lands ~5.8 NM away. A tight (2 NM) tolerance is therefore not
- * achievable against this particular reference point for a no-divergence
- * model -- only a leeway near 0.0263 x wind (~0.84 kt), not otherwise
- * motivated by IAMSAR Fig N-2, would land within 2 NM of it. 9 NM covers
- * the code's actual (correct-model, correct-coefficient) result with
- * headroom, while still failing hard (by two orders of magnitude) if the
- * coefficient regresses to the old 0.36: that lands ~198 NM away.
+ * Part (b) checks ComputeAgedDatum against the pure-downwind vector sum of
+ * IAMSAR's own figures (leeway 1.3 kt toward downwind 014T + TWC 1.86 kt
+ * toward 057T over 18.75 h), which docs/LEEWAY_NEEDS_VERIFICATION.md works
+ * out to a datum near 37 52.6'N 065 00.7'W. This is NOT the midpoint of
+ * IAMSAR's two divergence-bounded datums (021T/2.21kt and 060T/3.15kt):
+ * averaging two equal vectors +-50 deg off a centre bearing gives
+ * L*cos(50deg) ~= 0.64L along it, not L, so a no-divergence sum lands
+ * outside the L/R pair, to the north. (An earlier draft of the doc put the
+ * expected datum at the midpoint, 37 44'N -- that was wrong.)
+ *
+ * Tolerance is 5 NM, not the 2 NM used for the closed-form cases in
+ * test_datum_age.cpp: the code's leeway at the fixed 0.036 coefficient is
+ * 0.036 * 31.72 ~= 1.14 kt, ~0.16 kt below IAMSAR's textbook 1.3 kt for
+ * this craft, which alone shifts the datum ~3 NM. The check still fails by
+ * ~190 NM if the coefficient regresses to the old 0.36.
  *
  * ComputeAgedDatum only reads wind and current from a GribReader, so part
  * (b) builds a minimal synthetic GRIB2 file in memory -- four one-point
@@ -231,10 +229,10 @@ int main() {
 
   // (b) Full datum: EIP 37 10.0'N 065 45.0'W, ASW 194T/31.72kt, TWC
   // 057T/1.86kt, 18.75 h drift interval -- expect a datum near
-  // 37 44'N 065 03'W (the pure-downwind variant of the IAMSAR worked
-  // example, which produces two divergence-bounded datums this code's
-  // no-divergence model does not compute; see
-  // docs/LEEWAY_NEEDS_VERIFICATION.md).
+  // 37 52.6'N 065 00.7'W, the pure-downwind vector sum of IAMSAR's own
+  // figures (leeway 1.3 kt toward 014T + TWC 1.86 kt toward 057T). NOT the
+  // midpoint of IAMSAR's two divergence datums; see the file header and
+  // docs/LEEWAY_NEEDS_VERIFICATION.md.
   {
     const double eip_lat = 37.0 + 10.0 / 60.0;
     const double eip_lon = -(65.0 + 45.0 / 60.0);
@@ -243,13 +241,13 @@ int main() {
     const double current_speed_kt = 1.86;
     const double current_toward_deg = 57.0;
     const double drift_hours = 18.75;
-    const double expected_lat = 37.0 + 44.0 / 60.0;
-    const double expected_lon = -(65.0 + 3.0 / 60.0);
-    // See the file header: 9 NM, not the 2 NM used elsewhere, because this
-    // reference point is the midpoint of IAMSAR's two divergence-bounded
-    // datums, which a no-divergence vector-sum systematically lands ~6-9
-    // NM away from regardless of how accurate the leeway figure is.
-    const double tolerance_nm = 9.0;
+    const double expected_lat = 37.0 + 52.6 / 60.0;
+    const double expected_lon = -(65.0 + 0.7 / 60.0);
+    // 4 NM, not the 2 NM used for the closed-form cases in
+    // test_datum_age.cpp: the code's leeway at 0.036 is ~1.14 kt vs
+    // IAMSAR's textbook 1.3 kt for this craft, ~3 NM of the difference. A
+    // regression to 0.36 still misses by ~190 NM.
+    const double tolerance_nm = 5.0;
 
     // Grid spacing wide enough that the ~50 NM drift never leaves the
     // single grid point sampled at every step.
@@ -332,7 +330,7 @@ int main() {
       double distance_nm =
           DistanceNm(aged.lat, aged.lon, expected_lat, expected_lon);
       Check(distance_nm <= tolerance_nm,
-            "IAMSAR Appendix Q: datum lands within 9 NM of the pure-downwind "
+            "IAMSAR Appendix Q: datum lands within 5 NM of the pure-downwind "
             "expected position");
     }
 
