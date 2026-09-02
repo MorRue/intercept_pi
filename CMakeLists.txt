@@ -73,10 +73,22 @@ if (wxWidgets_FOUND)
   target_link_libraries(test_datum_age ${wxWidgets_LIBRARIES})
   add_test(NAME datum_age_test
            COMMAND test_datum_age "${CMAKE_SOURCE_DIR}/test/data")
+
+  # -------- Standalone IAMSAR reference test --------
+  #
+  # Same rationale as test_datum_age above; builds its own synthetic GRIB2
+  # fixture in memory rather than reading one from test/data, so it takes
+  # no data-directory argument.
+  add_executable(test_reference_iamsar test/test_reference_iamsar.cpp
+                 src/datum_age.cpp src/grib_reader.cpp)
+  target_include_directories(test_reference_iamsar PRIVATE src)
+  target_compile_definitions(test_reference_iamsar PRIVATE wxUSE_GUI=0)
+  target_link_libraries(test_reference_iamsar ${wxWidgets_LIBRARIES})
+  add_test(NAME reference_iamsar_test COMMAND test_reference_iamsar)
 else ()
   message(WARNING
-          "wxWidgets (base) not found; skipping test_grib_reader and "
-          "test_datum_age")
+          "wxWidgets (base) not found; skipping test_grib_reader, "
+          "test_datum_age, and test_reference_iamsar")
 endif ()
 
 add_subdirectory("opencpn-libs/${PKG_API_LIB}")

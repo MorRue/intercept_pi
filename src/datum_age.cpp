@@ -85,7 +85,9 @@ LeewayCoefficients LookupLeewayCoefficients(const wxString& craft_type) {
   if (craft_type.Lower().Contains("wooden")) {
     return LeewayCoefficients{0.04, 0.0};
   }
-  return LeewayCoefficients{0.36, 0.0};  // Rubber-hulled, and the default.
+  // 0.036 is mid liferaft range per IAMSAR Vol II Fig N-2 / Allen & Plourde
+  // 1999 -- see docs/LEEWAY_NEEDS_VERIFICATION.md. (0.36 was ~10x too large.)
+  return LeewayCoefficients{0.036, 0.0};  // Rubber-hulled, and the default.
 }
 
 AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
