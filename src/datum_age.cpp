@@ -11,8 +11,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 namespace {
+
+// Craft-type strings enumerated by CaseDialog's craft-type choice
+// (case_dialog.cpp's kCraftWoodenBoat); matched exactly rather than by
+// substring so a label change elsewhere can't accidentally match the wrong
+// category. Craft types not in this set get the rubber-hulled coefficients.
+const std::set<wxString> kWoodenCraftTypes = {
+    "Wooden boat (displacement hull)",
+};
 
 constexpr double kEarthRadiusNm = 3440.065;
 constexpr long kStepSeconds = 1800;  // 30 minutes.
@@ -82,7 +91,7 @@ void CombineVectors(double speed1_kt, double dir1_deg, double speed2_kt,
 }
 
 LeewayCoefficients LookupLeewayCoefficients(const wxString& craft_type) {
-  if (craft_type.Lower().Contains("wooden")) {
+  if (kWoodenCraftTypes.count(craft_type) > 0) {
     return LeewayCoefficients{0.04, 0.0};
   }
   return LeewayCoefficients{0.36, 0.0};  // Rubber-hulled, and the default.
