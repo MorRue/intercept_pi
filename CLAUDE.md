@@ -57,13 +57,16 @@ back with the drift work (see "Next").
 1. Case intake: position (DD/DDM/DMS), time of report, craft type, POB — done
 2. Datum: age the position forward using surface current + leeway
    (Allen & Plourde coefficients). With no environmental data at all,
-   datum = reported position. **The leeway model in `src/datum_age.cpp` is
-   NOT verified — see `docs/LEEWAY_NEEDS_VERIFICATION.md`; `kLeewayRubber = 0.36`
-   is almost certainly ~10× too large.** Do not tighten it or build on its
-   numbers without a human checking them against IAMSAR / Allen & Plourde.
+   datum = reported position. Method and leeway magnitude are confirmed
+   against IAMSAR Vol II & III and pinned by `test/test_reference_iamsar.cpp`;
+   the remaining simplifications (two craft buckets, no divergence, single
+   default coefficient) still want a SAR-literate review —
+   `docs/LEEWAY_NEEDS_VERIFICATION.md`.
 3. Uncertainty radius: position error + drift error
-4. Intercept: course onto a *moving* datum, ETA that updates as it drifts.
-   **Leeway drift is optional in this calculation.** When wind/current data is
+4. Intercept: course to steer + range + ETA. The **static form** (steer to the
+   datum, no lead angle — the datum already = reported position with no drift
+   data) ships first as the usable v0.1; the **moving form** leads the drifting
+   datum. **Leeway drift is optional in this calculation.** When wind/current data is
    available, compute the datum both *with* and *without* leeway drift, and let
    the operator toggle (a checkbox) which one the displayed intercept route
    uses — so an operator who doesn't trust the unverified leeway model can fall
@@ -150,40 +153,85 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Next
 
-1. **Fix the leeway coefficient and pin it with an IAMSAR reference test.**
-   `LookupLeewayCoefficients` returns `0.36 × wind` for the default craft — that
-   is 5–13× too large. `docs/LEEWAY_NEEDS_VERIFICATION.md` now has the checked
-   numbers from IAMSAR Vol II Figure N-2 (= Allen & Plourde 1999) and Vol III
-   p.3-18: liferaft leeway is ~2.5–7 % of wind speed. Code-only task:
-   - Change the default coefficient from `0.36` to **`0.036`** (mid liferaft
-     range; a plausible typo fix for `0.36` and defensible as a single-value
-     default). Leave `0.04` for "wooden" — it matches a displacement hull.
-     Add a code comment citing `docs/LEEWAY_NEEDS_VERIFICATION.md`.
-   - Add `test/test_reference_iamsar.cpp` (new CTest target, wire into
-     `CMakeLists.txt` and CI like `test_datum_age`): encode the IAMSAR Vol II
-     Appendix Q worked example (inputs and the pure-downwind expected datum are
-     spelled out at the bottom of `docs/LEEWAY_NEEDS_VERIFICATION.md`). Assert
-     (a) `LookupLeewayCoefficients("...") × 31.72 kt` ≈ 1.3 kt within ±0.4, and
-     (b) `ComputeAgedDatum` from 37°10′N 065°45′W with wind 194°T/31.72 kt,
-     current 057°T/1.86 kt, 18.75 h lands within 2 NM of 37°44′N 065°03′W.
-     This test must FAIL on the current `0.36` and PASS after the change — that
-     is the point of it.
-   Keep the public API unchanged. Do **not** add leeway divergence or change
-   the `wind + 180°` direction — pure downwind is the IAMSAR Vol III method and
-   is correct for this stage (see the doc).
+The priority is a **usable end-to-end plugin as early as possible**: enter a
+case → see a course to steer on the chart. The static-target version (steer to
+the datum, which already equals the reported position when there's no drift
+data) is genuinely useful for short transits and is what a crew does first
+anyway; datum ageing then *refines* it rather than being built in a vacuum.
 
-2. **Retro-review follow-up on PR #5's datum-ageing code** — *in review as
-   PR #7.* Validate `ManualSetAndDrift` values, guard `CombineVectors` zero
-   resultant, widen `test_datum_age.cpp`. Skip while that PR is open.
+1. **Course-to-steer computation** (Planned direction #4, static form).
+   Add a pure function — `src/intercept.{h,cpp}`, or extend `datum_age` —
+   `CourseToSteer(own_lat, own_lon, target_lat, target_lon, own_sog_kt)`
+   returning `{ bearing_deg, distance_nm, eta }` (`eta` optional / absent when
+   `own_sog_kt` <= 0). Great-circle bearing and distance; ETA = distance /
+   SOG. The target is `Case::aged_lat`/`aged_lon` (= the reported position
+   when there's no environmental data — so this works with or without a GRIB).
+   No lead angle: a stationary datum's course to steer *is* the bearing to it.
+   Own-ship position/SOG already arrive via `SetPositionFix()`
+   (`m_own_lat` … `m_own_sog`). Unit-test with hand-computed great-circle
+   bearings (e.g. due-N, due-E, a diagonal, an antimeridian crossing) and an
+   ETA case. Keep the API additive.
 
-3. **Uncertainty radius** (Planned direction #3): position error + drift error
-   around the aged datum. Must widen to cover the **leeway divergence area**
-   (±15–30° for rafts, per `docs/LEEWAY_NEEDS_VERIFICATION.md`) since the datum
-   itself uses pure downwind — and widen further when there is no
-   environmental input at all.
+2. **Show the course to steer** (GUI — needs OpenCPN to eyeball, CI can't test
+   it, so small steps). On case finalise: (a) a readout in/after the dialog —
+   datum lat/lon, bearing, distance, ETA, and `elapsed` if the datum was aged;
+   and (b) a course line from own-ship to the datum on the chart, via the
+   `wxDC` overlay path (`RenderOverlay`) and/or by creating an OpenCPN
+   route/waypoint so the navigator can activate it. **This is the usable
+   v0.1** — after it, every later item visibly improves a working tool.
 
-*Landed:* datum ageing (PR #5) — `ComputeAgedDatum` / `FinalizeDatum` on the
-`Case`, GRIB and manual set & drift as sources, drift optional. The datum
-*method* is confirmed against IAMSAR Vol II & III; the default leeway
-*coefficient* is wrong until task 1 lands — see
-`docs/LEEWAY_NEEDS_VERIFICATION.md`.
+3. **Uncertainty radius on the `Case`** (Planned direction #3). Compute the
+   total probable error of position `E` around the aged datum, per IAMSAR
+   Vol II §4.5 / Appendix K (the "Total probable error of position" and
+   "Datum" worksheets; the F/V SAMPLE worked example is Appendix Q). Method:
+
+       E = sqrt(X^2 + De^2)          (drop IAMSAR's Y term — no search
+                                      facility in this calculation)
+       De = drift_interval_hours * DVe
+       DVe = sqrt(LWe^2 + TWCe^2)    (leeway + current velocity errors)
+
+   - `LWe` (leeway probable error) is craft-config dependent — 0.1–0.35 kt
+     from the IAMSAR Fig N-2 table in `docs/LEEWAY_NEEDS_VERIFICATION.md`. For
+     the two-bucket model use a single conservative value (~0.3 kt); a
+     `LookupLeewayError(craft_type)` alongside `LookupLeewayCoefficients` is
+     fine.
+   - `TWCe`: if the current came from a GRIB, a fixed estimate (~0.3 kt,
+     IAMSAR's default for an unverified current); if manual set & drift, same.
+   - `X` (initial position error): needs an input. Simplest first cut — a
+     fixed small value (e.g. 1 NM) with a `// TODO` to derive it from how the
+     position was entered / a dialog field. Don't build the dialog field in
+     this task.
+   - With **no** environmental input, drift is zero but `De` is *not* — widen
+     it to represent "drift unknown" (e.g. assume up to ~0.5 kt over the
+     interval). The uncertainty must grow, not vanish, when data is missing.
+   - Because the datum uses pure downwind (no divergence), note in a comment
+     that `E` should really also cover the ±15–30° leeway divergence fan
+     (`docs/LEEWAY_NEEDS_VERIFICATION.md`); a full divergence model is a later
+     task, but a rough widening term here is acceptable.
+
+   Store `E` (NM) on the `Case` next to `aged_lat`/`aged_lon`. Unit-test in
+   `test_datum_age.cpp` or a new file: the Appendix Q sub-results are clean
+   checks — `DVe` = 0.60 kt and `De` = 18.75 h × 0.60 = 11.25 NM. Keep the
+   public API additive. Then draw it as a circle around the datum (extends
+   #2's overlay).
+
+4. **Intercept onto a *moving* datum** (Planned direction #4, full form): once
+   #1–#3 are in, the course to steer leads the target — solve for the point
+   where own-ship and the drifting datum coincide, ETA that updates as it
+   drifts. Builds directly on #1 by iterating the datum forward.
+
+5. **Search patterns** (Planned direction #5): expanding square, sector,
+   parallel track, emitted as OpenCPN routes centred on the datum.
+
+*Landed:*
+- Datum ageing (PR #5) — `ComputeAgedDatum` / `FinalizeDatum` on the `Case`,
+  GRIB and manual set & drift as sources, drift optional.
+- Leeway coefficient fixed `0.36 → 0.036` and pinned by
+  `test/test_reference_iamsar.cpp` against IAMSAR Vol II Appendix Q + the
+  Fig N-2 leeway band (PR #9). Input validation + `CombineVectors` guard
+  (PR #7).
+- The datum *method* and the leeway *magnitude* are now both confirmed
+  against IAMSAR Vol II & III. Still unconfirmed by a SAR-literate human: the
+  two-bucket craft model, the no-divergence simplification, and whether
+  `0.036` (vs a more conservative ~0.07) is the right single default — see
+  `docs/LEEWAY_NEEDS_VERIFICATION.md`.
