@@ -60,8 +60,23 @@ if (wxWidgets_FOUND)
   enable_testing()
   add_test(NAME grib_reader_test
            COMMAND test_grib_reader "${CMAKE_SOURCE_DIR}/test/data")
+
+  # -------- Standalone datum ageing test --------
+  #
+  # Same rationale as test_grib_reader above: ComputeAgedDatum() and its
+  # GribReader dependency only need wxBase types, so this links both .cpp
+  # files directly rather than pulling in the full plugin build.
+  add_executable(test_datum_age test/test_datum_age.cpp src/datum_age.cpp
+                 src/grib_reader.cpp)
+  target_include_directories(test_datum_age PRIVATE src)
+  target_compile_definitions(test_datum_age PRIVATE wxUSE_GUI=0)
+  target_link_libraries(test_datum_age ${wxWidgets_LIBRARIES})
+  add_test(NAME datum_age_test
+           COMMAND test_datum_age "${CMAKE_SOURCE_DIR}/test/data")
 else ()
-  message(WARNING "wxWidgets (base) not found; skipping test_grib_reader")
+  message(WARNING
+          "wxWidgets (base) not found; skipping test_grib_reader and "
+          "test_datum_age")
 endif ()
 
 add_subdirectory("opencpn-libs/${PKG_API_LIB}")

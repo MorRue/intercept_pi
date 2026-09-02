@@ -11,12 +11,15 @@
 #endif
 
 #include <cmath>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "case_dialog.h"
 #include "config.h"
+#include "datum_age.h"
+#include "grib_reader.h"
 #include "intercept_pi.h"
 #include "plug_utils.h"
 
@@ -180,6 +183,22 @@ PositionParseResult ParseCoordinate(const wxString& text, bool is_latitude) {
   result.ok = true;
   result.degrees = degrees;
   return result;
+}
+
+void Case::FinalizeDatum() {
+  std::unique_ptr<GribReader> grib;
+  if (!grib_file_path.IsEmpty()) {
+    grib = std::make_unique<GribReader>(wxFileName(grib_file_path));
+  }
+
+  // No case-dialog field for a manual set & drift yet -- ComputeAgedDatum()
+  // falls back to zero drift when grib_file_path was left empty.
+  AgedDatum aged =
+      ComputeAgedDatum(lat, lon, time_of_report, wxDateTime::Now(),
+                        craft_type, grib.get(), ManualSetAndDrift());
+  aged_lat = aged.lat;
+  aged_lon = aged.lon;
+  elapsed = aged.elapsed;
 }
 
 /*

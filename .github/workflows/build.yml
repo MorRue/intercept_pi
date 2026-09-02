@@ -45,9 +45,9 @@ jobs:
       - name: Build tarball
         run: cmake --build build --target tarball -j2
 
-      - name: Build and run GribReader test
+      - name: Build and run tests
         run: |
-          cmake --build build --target test_grib_reader -j2
+          cmake --build build -j2
           ctest --test-dir build --output-on-failure
 
       - name: Upload artifact
@@ -123,10 +123,10 @@ jobs:
       - name: Build tarball
         run: cmake --build build --target tarball --config Release
 
-      - name: Build and run GribReader test
+      - name: Build and run tests
         shell: pwsh
         run: |
-          cmake --build build --target test_grib_reader --config Release
+          cmake --build build --config Release
           # test_grib_reader dynamically links wxbase; its DLL lives next
           # to the import libs PluginLibs.cmake was pointed at above.
           $env:PATH = "$env:WXWIN\lib\vc_dll;$env:PATH"
