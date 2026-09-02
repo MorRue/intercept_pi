@@ -158,6 +158,116 @@ int main(int argc, char** argv) {
     }
   }
 
+  // (4) Zero elapsed time: time_of_report == now, with a manual drift
+  // available. The datum must equal the reported position exactly --
+  // ComputeAgedDatum's now <= time_of_report guard returns before the
+  // integration loop ever runs, regardless of what drift source is set.
+  {
+    const double lat = 51.0, lon = -1.0;
+    const wxDateTime time_of_report(static_cast<time_t>(1000));
+    const wxDateTime now(static_cast<time_t>(1000));  // Same instant.
+
+    ManualSetAndDrift manual;
+    manual.available = true;
+    manual.set_deg = 45.0;
+    manual.drift_kt = 3.0;
+
+    AgedDatum aged = ComputeAgedDatum(
+        lat, lon, time_of_report, now, "Wooden boat (displacement hull)",
+        /*grib=*/nullptr, manual);
+
+    Check(aged.lat == lat, "zero-elapsed: aged lat equals reported lat");
+    Check(aged.lon == lon, "zero-elapsed: aged lon equals reported lon");
+    Check(aged.elapsed.GetSeconds().ToLong() == 0,
+          "zero-elapsed: elapsed is zero");
+  }
+
+  // (5) Southward manual drift entered as set_deg = -180, which
+  // NormalizeDegrees must fold into a true bearing of 180 (due south)
+  // before it drives the integration. Due south is the mirror of the
+  // due-east case: a degenerate rhumb line that keeps longitude fixed, so
+  // the expected latitude change can be predicted in closed form.
+  {
+    const double kEarthRadiusNm = 3440.065;
+
+    const double lat = 45.0, lon = 10.0;
+    const wxDateTime time_of_report(static_cast<time_t>(0));
+    const wxDateTime now(static_cast<time_t>(3600));  // +1 hour.
+
+    ManualSetAndDrift manual;
+    manual.available = true;
+    manual.set_deg = -180.0;  // Normalises to 180 (due south).
+    manual.drift_kt = 5.0;
+
+    AgedDatum aged = ComputeAgedDatum(
+        lat, lon, time_of_report, now, "Wooden boat (displacement hull)",
+        /*grib=*/nullptr, manual);
+
+    const double distance_nm = manual.drift_kt * 1.0;  // 1 hour at 5 kt.
+    const double expected_lat =
+        lat - (distance_nm / kEarthRadiusNm) * (180.0 / M_PI);
+
+    Check(std::fabs(aged.lat - expected_lat) < 1e-6,
+          "manual south: set_deg=-180 normalises and matches predicted "
+          "latitude");
+    Check(std::fabs(aged.lon - lon) < 1e-6,
+          "manual south: due-south drift leaves longitude unchanged");
+  }
+
+  // (6) High-latitude start (>70N): due-east manual drift, same closed
+  // form as case (2) but far enough poleward to actually exercise the
+  // meridian-convergence term (q) in AdvancePosition's rhumb-line math
+  // rather than the near-equatorial case where it barely matters.
+  {
+    const double kEarthRadiusNm = 3440.065;
+
+    const double lat = 75.0, lon = 20.0;
+    const wxDateTime time_of_report(static_cast<time_t>(0));
+    const wxDateTime now(static_cast<time_t>(3600));  // +1 hour.
+
+    ManualSetAndDrift manual;
+    manual.available = true;
+    manual.set_deg = 90.0;  // Due east.
+    manual.drift_kt = 5.0;
+
+    AgedDatum aged = ComputeAgedDatum(
+        lat, lon, time_of_report, now, "Wooden boat (displacement hull)",
+        /*grib=*/nullptr, manual);
+
+    const double distance_nm = manual.drift_kt * 1.0;  // 1 hour at 5 kt.
+    const double expected_lon =
+        lon + (distance_nm / kEarthRadiusNm) * (180.0 / M_PI) /
+                  std::cos(lat * M_PI / 180.0);
+
+    Check(std::fabs(aged.lat - lat) < 1e-6,
+          "high-latitude: due-east drift leaves latitude unchanged");
+    Check(std::fabs(aged.lon - expected_lon) < 1e-6,
+          "high-latitude: due-east drift matches predicted longitude above "
+          "70N");
+  }
+
+  // (7) CombineVectors zero-resultant guard: a current vector and a leeway
+  // vector that cancel sum to the zero vector, which used to fall through
+  // to atan2(0, 0) -- defined, but a platform convention rather than a
+  // meaningful bearing. Zero-magnitude inputs are used rather than two
+  // equal-and-opposite nonzero vectors (e.g. 5 kt at 90 deg and 5 kt at
+  // 270 deg): multiplying by an exact 0.0 speed is guaranteed by IEEE 754
+  // to sum to exactly 0.0 on every platform and optimisation level, while
+  // two nonzero vectors 180 deg apart only cancel to *approximately* zero
+  // -- sin/cos of independently-rounded angles leave a residual of a few
+  // ULP that is sensitive to the libm implementation and even to
+  // surrounding code changing how the compiler schedules the FP ops (this
+  // was confirmed directly: the same nonzero-vector case flipped between
+  // failing and passing here after an unrelated debug print changed
+  // inlining). A reliably exact zero resultant needs zero-magnitude
+  // vectors, which still exercises the same `x == 0 && y == 0` branch.
+  {
+    double speed_kt = -1.0, dir_deg = -1.0;
+    CombineVectors(0.0, 90.0, 0.0, 270.0, &speed_kt, &dir_deg);
+    Check(speed_kt == 0.0, "CombineVectors: zero-magnitude vectors -> zero speed");
+    Check(dir_deg == 0.0, "CombineVectors: zero-magnitude vectors -> zero dir");
+  }
+
   if (g_failures > 0) {
     std::fprintf(stderr, "%d check(s) failed\n", g_failures);
     return 1;
