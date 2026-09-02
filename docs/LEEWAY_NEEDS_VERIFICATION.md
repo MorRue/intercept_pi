@@ -126,9 +126,14 @@ coefficient is 0.036 × 31.72 ≈ 1.14 kt, ~0.16 kt short of IAMSAR's textbook
 1.3 kt for this craft, which by itself shifts the datum ~3 NM. The check still
 fails by ~190 NM if the coefficient regresses to 0.36.
 
-Also assert the leeway sub-calc directly: `LookupLeewayCoefficients(<default>)`
-× 31.72 kt must be **≈ 1.3 kt (±0.4)** — passes at 0.036 (1.14 kt), fails hard
-at 0.36 (11.4 kt). This is the tight, unambiguous coefficient check.
+Also assert the leeway sub-calc directly (the tight, unambiguous coefficient
+check): `LookupLeewayCoefficients(<default>)` × wind must
+
+- be **≈ 1.3 kt (±0.4)** at 31.72 kt (IAMSAR Appendix Q) — passes at 0.036
+  (1.14 kt), fails hard at 0.36 (11.4 kt); and
+- land inside the IAMSAR liferaft-leeway band (~2.5–7.5 % of wind, Fig N-2 /
+  Vol III p.3-18) at 10, 20, 30 and 40 kt — confirms the *slope*, not just one
+  mid-range point.
 
 ## Sources
 
