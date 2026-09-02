@@ -213,18 +213,42 @@ std::vector<unsigned char> BuildGribMessage(
 }  // namespace
 
 int main() {
-  // (a) Leeway sub-calculation: IAMSAR Vol II Appendix Q gives a leeway
-  // speed of 1.3 kt for the example's average surface wind of 31.72 kt.
-  // The code's two-bucket craft_type model does not have a specific
-  // "fishing vessel" bucket, so this checks the default (non-"wooden")
-  // bucket -- the same one test_datum_age.cpp's GRIB-sourced case uses.
-  {
-    const wxString craft_type = "Rubber boat (inflatable, RIB, liferaft)";
-    LeewayCoefficients coeffs = LookupLeewayCoefficients(craft_type);
-    double leeway_speed_kt =
-        coeffs.speed_pct_of_wind * 31.72 + coeffs.speed_constant_kt;
-    Check(std::fabs(leeway_speed_kt - 1.3) <= 0.4,
-          "leeway sub-calc: default coefficient x 31.72 kt is near 1.3 kt");
+  // (a) Leeway sub-calculation. The code's two-bucket craft_type model has
+  // no specific "fishing vessel" bucket, so this exercises the default
+  // (non-"wooden") one -- the same bucket test_datum_age.cpp's GRIB case
+  // uses.
+  const wxString craft_type = "Rubber boat (inflatable, RIB, liferaft)";
+  const LeewayCoefficients coeffs = LookupLeewayCoefficients(craft_type);
+  const auto leeway_kt = [&](double wind_kt) {
+    return coeffs.speed_pct_of_wind * wind_kt + coeffs.speed_constant_kt;
+  };
+
+  // (a.1) IAMSAR Vol II Appendix Q gives leeway 1.3 kt for the example's
+  // 31.72 kt average surface wind.
+  Check(std::fabs(leeway_kt(31.72) - 1.3) <= 0.4,
+        "leeway: default coefficient x 31.72 kt is near IAMSAR's 1.3 kt");
+
+  // (a.2) IAMSAR Vol II Fig N-2 / Vol III p.3-18 "Liferaft leeway": across
+  // raft configs (drogue / ballast / canopy) leeway spans ~2.5%-7.5% of
+  // wind speed. The default single-coefficient model must land inside that
+  // band at low, mid and high wind. Checking several wind speeds (not just
+  // Appendix Q's one mid-range value) confirms the slope sits in the
+  // IAMSAR range and would catch a leeway that only looks right near 30 kt.
+  const struct {
+    double wind_kt, iamsar_low_kt, iamsar_high_kt;
+  } kLeewayBand[] = {
+      {10.0, 0.20, 0.80},
+      {20.0, 0.45, 1.50},
+      {30.0, 0.70, 2.20},
+      {40.0, 0.95, 2.95},  // graph extrapolated past its 34 kt edge
+  };
+  for (const auto& p : kLeewayBand) {
+    double lw = leeway_kt(p.wind_kt);
+    char msg[128];
+    std::snprintf(msg, sizeof(msg),
+                  "leeway: %.0f kt wind -> %.2f kt is in IAMSAR band [%.2f, %.2f]",
+                  p.wind_kt, lw, p.iamsar_low_kt, p.iamsar_high_kt);
+    Check(lw >= p.iamsar_low_kt && lw <= p.iamsar_high_kt, msg);
   }
 
   // (b) Full datum: EIP 37 10.0'N 065 45.0'W, ASW 194T/31.72kt, TWC
