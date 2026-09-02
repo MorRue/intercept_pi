@@ -86,4 +86,14 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
                            const GribReader* grib,
                            const ManualSetAndDrift& manual);
 
+/**
+ * Vector sum of two (speed, true direction the vector points TOWARD)
+ * pairs, e.g. surface current and wind-driven leeway. Exposed for unit
+ * testing (the zero-resultant guard, in particular); not meant as a
+ * general-purpose API outside datum ageing.
+ */
+void CombineVectors(double speed1_kt, double dir1_deg, double speed2_kt,
+                     double dir2_deg, double* out_speed_kt,
+                     double* out_dir_deg);
+
 #endif  // INTERCEPT_PI_DATUM_AGE_H__
