@@ -150,32 +150,40 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Next
 
-1. **Retro-review follow-up on PR #5's datum-ageing code.** The local reviewer
-   raised three HIGH flags (`homelab/orchestrator/runs/needs-human/pr5.md`).
-   Reading the merged code, two are weak — `manual.available` *is* checked
-   before use, and the null-`grib` path *is* the handled no-file case — and
-   `atan2(0,0)` is defined (returns 0), not UB. What is actually worth doing,
-   code only:
-   - **Validate `ManualSetAndDrift` values**, not just its `available` flag:
-     a negative `drift_kt` or an out-of-range `set_deg` currently flows
-     straight into the integration. Clamp `drift_kt` at 0 and normalise
-     `set_deg` to [0,360) in `ComputeAgedDatum` (or reject → drift 0).
-   - **Guard `CombineVectors` against a zero resultant** — return
-     `speed 0, dir 0` when `x == 0 && y == 0` rather than depending on the
-     platform `atan2(0,0)`.
-   - **Widen `test_datum_age.cpp`.** It has 3 closed-form cases; add: zero
-     elapsed time, a southward (bearing ~180°) manual drift, a high-latitude
-     (>70°) start, and current+leeway that cancel (exercises the
-     `CombineVectors` zero guard).
-   Keep the public API unchanged. **Do not touch the leeway coefficients or the
-   `wind + 180°` direction — those are unverified domain questions for a human
-   (`docs/LEEWAY_NEEDS_VERIFICATION.md`), not part of this task.**
+1. **Fix the leeway coefficient and pin it with an IAMSAR reference test.**
+   `LookupLeewayCoefficients` returns `0.36 × wind` for the default craft — that
+   is 5–13× too large. `docs/LEEWAY_NEEDS_VERIFICATION.md` now has the checked
+   numbers from IAMSAR Vol II Figure N-2 (= Allen & Plourde 1999) and Vol III
+   p.3-18: liferaft leeway is ~2.5–7 % of wind speed. Code-only task:
+   - Change the default coefficient from `0.36` to **`0.036`** (mid liferaft
+     range; a plausible typo fix for `0.36` and defensible as a single-value
+     default). Leave `0.04` for "wooden" — it matches a displacement hull.
+     Add a code comment citing `docs/LEEWAY_NEEDS_VERIFICATION.md`.
+   - Add `test/test_reference_iamsar.cpp` (new CTest target, wire into
+     `CMakeLists.txt` and CI like `test_datum_age`): encode the IAMSAR Vol II
+     Appendix Q worked example (inputs and the pure-downwind expected datum are
+     spelled out at the bottom of `docs/LEEWAY_NEEDS_VERIFICATION.md`). Assert
+     (a) `LookupLeewayCoefficients("...") × 31.72 kt` ≈ 1.3 kt within ±0.4, and
+     (b) `ComputeAgedDatum` from 37°10′N 065°45′W with wind 194°T/31.72 kt,
+     current 057°T/1.86 kt, 18.75 h lands within 2 NM of 37°44′N 065°03′W.
+     This test must FAIL on the current `0.36` and PASS after the change — that
+     is the point of it.
+   Keep the public API unchanged. Do **not** add leeway divergence or change
+   the `wind + 180°` direction — pure downwind is the IAMSAR Vol III method and
+   is correct for this stage (see the doc).
 
-2. **Uncertainty radius** (Planned direction #3): position error + drift error
-   around the aged datum. Drift error should widen when there is no
-   environmental input, per the "treat drift as zero, widen the radius to say
-   so" rule in Planned direction #2.
+2. **Retro-review follow-up on PR #5's datum-ageing code** — *in review as
+   PR #7.* Validate `ManualSetAndDrift` values, guard `CombineVectors` zero
+   resultant, widen `test_datum_age.cpp`. Skip while that PR is open.
+
+3. **Uncertainty radius** (Planned direction #3): position error + drift error
+   around the aged datum. Must widen to cover the **leeway divergence area**
+   (±15–30° for rafts, per `docs/LEEWAY_NEEDS_VERIFICATION.md`) since the datum
+   itself uses pure downwind — and widen further when there is no
+   environmental input at all.
 
 *Landed:* datum ageing (PR #5) — `ComputeAgedDatum` / `FinalizeDatum` on the
-`Case`, GRIB and manual set & drift as sources, drift optional. Correctness of
-the leeway model itself is still unverified — see `docs/LEEWAY_NEEDS_VERIFICATION.md`.
+`Case`, GRIB and manual set & drift as sources, drift optional. The datum
+*method* is confirmed against IAMSAR Vol II & III; the default leeway
+*coefficient* is wrong until task 1 lands — see
+`docs/LEEWAY_NEEDS_VERIFICATION.md`.
