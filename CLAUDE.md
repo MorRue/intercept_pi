@@ -150,10 +150,32 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Next
 
-1. **Datum ageing** (Planned direction #2): age the reported position forward
-   to now using surface current + leeway (Allen & Plourde coefficients per
-   craft type). Wind/current comes from the optional GRIB file
-   (`GribReader::LookupWind` / `LookupCurrent`, `Case::grib_file_path`); with no
-   GRIB and no manual set & drift, drift is zero and datum = reported position.
-   Compute the aged datum on the `Case`; no uncertainty radius or intercept
-   course yet.
+1. **Retro-review follow-up on PR #5's datum-ageing code.** The local reviewer
+   raised three HIGH flags (`homelab/orchestrator/runs/needs-human/pr5.md`).
+   Reading the merged code, two are weak — `manual.available` *is* checked
+   before use, and the null-`grib` path *is* the handled no-file case — and
+   `atan2(0,0)` is defined (returns 0), not UB. What is actually worth doing,
+   code only:
+   - **Validate `ManualSetAndDrift` values**, not just its `available` flag:
+     a negative `drift_kt` or an out-of-range `set_deg` currently flows
+     straight into the integration. Clamp `drift_kt` at 0 and normalise
+     `set_deg` to [0,360) in `ComputeAgedDatum` (or reject → drift 0).
+   - **Guard `CombineVectors` against a zero resultant** — return
+     `speed 0, dir 0` when `x == 0 && y == 0` rather than depending on the
+     platform `atan2(0,0)`.
+   - **Widen `test_datum_age.cpp`.** It has 3 closed-form cases; add: zero
+     elapsed time, a southward (bearing ~180°) manual drift, a high-latitude
+     (>70°) start, and current+leeway that cancel (exercises the
+     `CombineVectors` zero guard).
+   Keep the public API unchanged. **Do not touch the leeway coefficients or the
+   `wind + 180°` direction — those are unverified domain questions for a human
+   (`docs/LEEWAY_NEEDS_VERIFICATION.md`), not part of this task.**
+
+2. **Uncertainty radius** (Planned direction #3): position error + drift error
+   around the aged datum. Drift error should widen when there is no
+   environmental input, per the "treat drift as zero, widen the radius to say
+   so" rule in Planned direction #2.
+
+*Landed:* datum ageing (PR #5) — `ComputeAgedDatum` / `FinalizeDatum` on the
+`Case`, GRIB and manual set & drift as sources, drift optional. Correctness of
+the leeway model itself is still unverified — see `docs/LEEWAY_NEEDS_VERIFICATION.md`.
