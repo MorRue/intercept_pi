@@ -60,7 +60,8 @@ void AdvancePosition(double lat, double lon, double bearing_deg,
   *out_lon = NormalizeDegrees(ToDeg(lambda2) + 180.0) - 180.0;
 }
 
-/** Vector sum of two (speed, true direction the vector points TOWARD) pairs. */
+}  // namespace
+
 void CombineVectors(double speed1_kt, double dir1_deg, double speed2_kt,
                      double dir2_deg, double* out_speed_kt,
                      double* out_dir_deg) {
@@ -68,11 +69,17 @@ void CombineVectors(double speed1_kt, double dir1_deg, double speed2_kt,
              speed2_kt * std::sin(ToRad(dir2_deg));
   double y = speed1_kt * std::cos(ToRad(dir1_deg)) +
              speed2_kt * std::cos(ToRad(dir2_deg));
+  // Equal-and-opposite vectors (e.g. current cancelling leeway) can leave x
+  // and y exactly zero, where atan2's result at the origin is a platform
+  // convention rather than a meaningful direction.
+  if (x == 0.0 && y == 0.0) {
+    *out_speed_kt = 0.0;
+    *out_dir_deg = 0.0;
+    return;
+  }
   *out_speed_kt = std::sqrt(x * x + y * y);
   *out_dir_deg = NormalizeDegrees(ToDeg(std::atan2(x, y)));
 }
-
-}  // namespace
 
 LeewayCoefficients LookupLeewayCoefficients(const wxString& craft_type) {
   if (craft_type.Lower().Contains("wooden")) {
@@ -103,6 +110,19 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
   }
 
   const LeewayCoefficients leeway = LookupLeewayCoefficients(craft_type);
+
+  // Sanitise operator-entered set & drift once, before integrating: a
+  // non-finite value (NaN from a bad text-field parse) drifts nothing
+  // rather than propagating NaN through every subsequent step, a negative
+  // drift_kt is clamped to 0 rather than driving the datum backwards, and
+  // an out-of-range set_deg is normalised into a true bearing.
+  double manual_drift_kt = 0.0;
+  double manual_set_deg = 0.0;
+  if (manual.available && std::isfinite(manual.drift_kt) &&
+      std::isfinite(manual.set_deg)) {
+    manual_drift_kt = std::max(0.0, manual.drift_kt);
+    manual_set_deg = NormalizeDegrees(manual.set_deg);
+  }
 
   long step_seconds = kStepSeconds;
   if (total_seconds / step_seconds > kMaxSteps) {
@@ -145,8 +165,8 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
         drift_dir_deg = leeway_dir_deg;
       }
     } else if (manual.available) {
-      drift_speed_kt = manual.drift_kt;
-      drift_dir_deg = manual.set_deg;
+      drift_speed_kt = manual_drift_kt;
+      drift_dir_deg = manual_set_deg;
     }
 
     if (drift_speed_kt > 0.0) {
