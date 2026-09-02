@@ -172,15 +172,44 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    bearings (e.g. due-N, due-E, a diagonal, an antimeridian crossing) and an
    ETA case. Keep the API additive.
 
-2. **Show the course to steer** (GUI — needs OpenCPN to eyeball, CI can't test
-   it, so small steps). On case finalise: (a) a readout in/after the dialog —
-   datum lat/lon, bearing, distance, ETA, and `elapsed` if the datum was aged;
-   and (b) a course line from own-ship to the datum on the chart, via the
-   `wxDC` overlay path (`RenderOverlay`) and/or by creating an OpenCPN
-   route/waypoint so the navigator can activate it. **This is the usable
-   v0.1** — after it, every later item visibly improves a working tool.
+2. **Show the course to steer — v0.1** (GUI; small steps). Two parts:
+   - **(a) Readout** — after the case dialog OKs, run `FinalizeDatum()` +
+     `CourseToSteer()` and show datum lat/lon, bearing, distance, ETA, and
+     `elapsed` if the datum was aged. A read-only panel on `CaseDialog` or a
+     small results dialog. Handle "no own-ship fix" (show the datum, say the
+     course is unavailable). The number formatting is pure — unit-test it.
+   - **(b) A course line to the datum via an OpenCPN route**, *not* a custom
+     overlay. Build a two-waypoint `PlugIn_Route` (own-ship snapshot → datum)
+     with `AddPlugInRoute`; give it a fixed GUID and delete/replace the
+     previous one on recompute so routes don't pile up. This is
+     geometrically trivial (OpenCPN owns the drawing) and the route is
+     *activatable* — the navigator can steer it. The lifecycle (one route,
+     replaced cleanly, removed on `DeInit`) is the part to get right; test
+     what you can (the waypoint list builder) and review the rest in OpenCPN.
+   Do **not** build a `RenderOverlay` custom overlay yet — see #3.
+   **This is the usable v0.1.**
 
-3. **Uncertainty radius on the `Case`** (Planned direction #3). Compute the
+3. **Headless overlay smoke-test harness** (infra, do before any custom
+   chart drawing). A `RenderOverlay(wxDC&, PlugIn_ViewPort*)` overlay can't
+   be verified by `ctest` today, so the loop is blind to it. Set that up:
+   - Factor the drawing into a free function
+     `DrawInterceptOverlay(wxDC& dc, const OverlayViewport& vp, const OverlayState& s)`
+     where `OverlayViewport` is a tiny struct holding just what the drawing
+     needs (pixel size, and a `LatLonToPix(lat, lon) -> wxPoint` supplied by
+     the caller — OpenCPN's `GetCanvasPixLL` in the plugin, a fake in tests).
+   - New CTest target `test_overlay`: render `DrawInterceptOverlay` into a
+     `wxBitmap` via `wxMemoryDC`, then assert on pixels — a non-background
+     pixel near where the datum projects, line endpoints at expected pixels,
+     nothing drawn when `OverlayState` is empty, no crash for an off-screen
+     datum. Add `xvfb-run` to the Linux CI step (`sudo apt-get install -y
+     xvfb`, wrap the ctest invocation) — `wxBitmap`/`wxMemoryDC` need an X
+     connection on Linux. Windows CI can skip this target.
+   - This does not catch "looks ugly / wrong colour / labels collide" — that
+     stays a human review in OpenCPN — but it catches wrong projection math,
+     off-screen draws, crashes, and draw-when-shouldn't, which is most of the
+     way there. It pays off across #4 and #6.
+
+4. **Uncertainty radius on the `Case`** (Planned direction #3). Compute the
    total probable error of position `E` around the aged datum, per IAMSAR
    Vol II §4.5 / Appendix K (the "Total probable error of position" and
    "Datum" worksheets; the F/V SAMPLE worked example is Appendix Q). Method:
@@ -212,15 +241,16 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    Store `E` (NM) on the `Case` next to `aged_lat`/`aged_lon`. Unit-test in
    `test_datum_age.cpp` or a new file: the Appendix Q sub-results are clean
    checks — `DVe` = 0.60 kt and `De` = 18.75 h × 0.60 = 11.25 NM. Keep the
-   public API additive. Then draw it as a circle around the datum (extends
-   #2's overlay).
+   public API additive. Then draw it as a circle around the datum — this is
+   the first custom `RenderOverlay` drawing; use the #3 harness (`test_overlay`
+   asserts a ring of set pixels at radius `E` around the projected datum).
 
-4. **Intercept onto a *moving* datum** (Planned direction #4, full form): once
-   #1–#3 are in, the course to steer leads the target — solve for the point
+5. **Intercept onto a *moving* datum** (Planned direction #4, full form): once
+   #1–#4 are in, the course to steer leads the target — solve for the point
    where own-ship and the drifting datum coincide, ETA that updates as it
    drifts. Builds directly on #1 by iterating the datum forward.
 
-5. **Search patterns** (Planned direction #5): expanding square, sector,
+6. **Search patterns** (Planned direction #5): expanding square, sector,
    parallel track, emitted as OpenCPN routes centred on the datum.
 
 *Landed:*
