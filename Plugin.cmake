@@ -64,6 +64,8 @@ set(SRC
     src/grib_reader.cpp
     src/datum_age.h
     src/datum_age.cpp
+    src/intercept.h
+    src/intercept.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )
