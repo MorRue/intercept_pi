@@ -35,6 +35,8 @@ private:
   void OnRecalculate(wxCommandEvent& event);
   void OnBrowseGrib(wxCommandEvent& event);
   void OnClose(wxCloseEvent& event);
+  void OnLockToggled(wxCommandEvent& event);
+  void OnManualOwnToggled(wxCommandEvent& event);
 
   // Fills the output rows from a finalised case + effective own-ship, or
   // shows why the course to steer is unavailable.
@@ -42,6 +44,10 @@ private:
 
   intercept_pi* m_plugin;
   wxPanel* m_content;
+
+  wxCheckBox* m_lock_position;
+  wxCheckBox* m_lock_time;
+  wxCheckBox* m_use_manual_own;
 
   wxTextCtrl* m_position_ctrl;
   wxDatePickerCtrl* m_date_ctrl;
