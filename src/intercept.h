@@ -31,6 +31,11 @@ struct InterceptResult {
  * this once per iteration against the target's extrapolated position.
  * Bearing is via the atan2 two-argument formula; distance is haversine,
  * both on a spherical-earth approximation, in nautical miles.
+ *
+ * Coordinates are expected in degrees; a non-finite input (NaN/Inf) yields
+ * a zeroed result (distance 0, bearing 0, no ETA) rather than propagating.
+ * Finite but out-of-range degrees are left to the periodic trig -- that is
+ * a caller bug, not something this function masks.
  */
 InterceptResult CourseToSteer(double own_lat, double own_lon,
                                double target_lat, double target_lon,

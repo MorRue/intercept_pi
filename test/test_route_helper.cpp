@@ -58,6 +58,21 @@ int main() {
     }
   }
 
+  // (3) A non-finite coordinate is replaced with 0, keeping the two-point
+  // contract so callers can index [0]/[1] unconditionally.
+  {
+    const double nan = std::nan("");
+    std::vector<GeoPoint> wps =
+        BuildInterceptWaypoints(nan, 5.0, 10.0, HUGE_VAL);
+    Check(wps.size() == 2, "non-finite: still two waypoints");
+    if (wps.size() == 2) {
+      Check(wps[0].lat == 0.0 && wps[0].lon == 5.0,
+            "non-finite: NaN lat -> 0, finite lon kept");
+      Check(wps[1].lat == 10.0 && wps[1].lon == 0.0,
+            "non-finite: Inf lon -> 0, finite lat kept");
+    }
+  }
+
   if (g_failures > 0) {
     std::fprintf(stderr, "%d check(s) failed\n", g_failures);
     return 1;
