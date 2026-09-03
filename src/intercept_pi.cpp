@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -424,13 +425,24 @@ void intercept_pi::SetPositionFix(PlugIn_Position_Fix& pfix) {
 }
 
 void intercept_pi::OnToolbarToolCallback(int WXUNUSED(id)) {
-  if (!m_panel) m_panel = new InterceptPanel(m_parent_window, this);
+  // A C++ exception escaping a plugin callback aborts the whole OpenCPN
+  // process. Contain it here (and in the panel's Recalculate handler). The
+  // only call below that can throw is the InterceptPanel constructor; if it
+  // does, m_panel stays null and nothing is shown -- a consistent no-op, as
+  // if the toolbar click had not happened.
+  try {
+    if (!m_panel) m_panel = new InterceptPanel(m_parent_window, this);
 
-  const bool show = !m_panel->IsShown();
-  m_panel->Show(show);
-  if (show) m_panel->Raise();
-  if (m_leftclick_tool_id != -1)
-    SetToolbarItemState(m_leftclick_tool_id, show);
+    const bool show = !m_panel->IsShown();
+    m_panel->Show(show);
+    if (show) m_panel->Raise();
+    if (m_leftclick_tool_id != -1)
+      SetToolbarItemState(m_leftclick_tool_id, show);
+  } catch (const std::exception& e) {
+    wxLogWarning("intercept_pi: toolbar callback failed: %s", e.what());
+  } catch (...) {
+    wxLogWarning("intercept_pi: toolbar callback failed (unknown exception)");
+  }
 }
 
 std::optional<OwnShipState> intercept_pi::LiveFix() const {
@@ -465,12 +477,16 @@ void intercept_pi::UpdateChartObjects(const Case& c,
   // styles), so the two lines are visually distinct.
   wxString g;
 
+  // b_permanent=false throughout: these objects are a session-scoped
+  // visualisation, torn down in DeInit(). Nothing is written to the user's
+  // navobj.xml, so an OpenCPN crash or kill that skips DeInit() cannot leave
+  // orphan "Target" / "Intercept" / "Course to steer" objects behind.
   g = kTargetMarkGuid;
   DeleteSingleWaypoint(g);
   if (show_target) {
     PlugIn_Waypoint target(c.lat, c.lon, wxT("activepoint"), _("Target"),
                            kTargetMarkGuid);
-    AddSingleWaypoint(&target, /*b_permanent=*/true);
+    AddSingleWaypoint(&target, /*b_permanent=*/false);
   }
 
   g = kEstimatedMarkGuid;
@@ -478,7 +494,7 @@ void intercept_pi::UpdateChartObjects(const Case& c,
   if (show_estimated) {
     PlugIn_Waypoint estimated(c.aged_lat, c.aged_lon, wxT("circle"),
                               _("Estimated position"), kEstimatedMarkGuid);
-    AddSingleWaypoint(&estimated, /*b_permanent=*/true);
+    AddSingleWaypoint(&estimated, /*b_permanent=*/false);
   }
 
   g = kDriftTrackGuid;
@@ -494,7 +510,12 @@ void intercept_pi::UpdateChartObjects(const Case& c,
         new PlugIn_Waypoint(c.lat, c.lon, wxT("circle"), _("Reported")));
     track->pWaypointList->Append(new PlugIn_Waypoint(
         c.aged_lat, c.aged_lon, wxT("circle"), _("Estimated position")));
-    AddPlugInTrack(track, /*b_permanent=*/true);
+    AddPlugInTrack(track, /*b_permanent=*/false);
+    // AddPlugInTrack copies the data into OpenCPN's own Track; the plugin
+    // keeps ownership of what it new'd. ~PlugIn_Track frees pWaypointList and
+    // its nodes (the bulk); the two PlugIn_Waypoint payloads are a known
+    // small residual -- OpenCPN's dtor uses DeleteContents(false).
+    delete track;
   }
 
   // Passing nullopt makes UpdateCourseRoute tear down both the route and the
@@ -538,8 +559,12 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   route->pWaypointList->Append(new PlugIn_Waypoint(
       points[1].lat, points[1].lon, wxT("circle"), _("Intercept")));
 
-  // Ordinary activatable route, so the navigator can select and steer it.
-  AddPlugInRoute(route, /*b_permanent=*/true);
+  // Session-scoped (b_permanent=false); the navigator can still select it on
+  // the chart, and "Navigate to" works on the Intercept mark for an active
+  // route. AddPlugInRoute copies the data into OpenCPN's own Route, so free
+  // the plugin's copy after (see the ~PlugIn_Track note above).
+  AddPlugInRoute(route, /*b_permanent=*/false);
+  delete route;
 
   // The intercept: the far end of the course line -- the moving-target
   // meeting point when it solved, else the present estimated position. A
@@ -547,5 +572,5 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   // mark when the two coincide.
   PlugIn_Waypoint intercept(points[1].lat, points[1].lon, wxT("diamond"),
                             _("Intercept"), kInterceptMarkGuid);
-  AddSingleWaypoint(&intercept, /*b_permanent=*/true);
+  AddSingleWaypoint(&intercept, /*b_permanent=*/false);
 }

@@ -11,8 +11,10 @@
 #endif
 #include <wx/checkbox.h>
 #include <wx/filedlg.h>
+#include <wx/log.h>
 
 #include <cmath>
+#include <exception>
 #include <vector>
 
 #include "intercept_panel.h"
@@ -433,6 +435,16 @@ void InterceptPanel::OnClose(wxCloseEvent& event) {
 }
 
 void InterceptPanel::OnRecalculate(wxCommandEvent& WXUNUSED(event)) {
+  try {
+    DoRecalculate();
+  } catch (const std::exception& e) {
+    wxLogWarning("intercept_pi: recalculate failed: %s", e.what());
+  } catch (...) {
+    wxLogWarning("intercept_pi: recalculate failed (unknown exception)");
+  }
+}
+
+void InterceptPanel::DoRecalculate() {
   Case c;
   if (!ParsePos(m_position_ctrl->GetValue(), this, _("Reported position"),
                 &c.lat, &c.lon)) {
