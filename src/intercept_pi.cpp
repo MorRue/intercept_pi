@@ -401,14 +401,16 @@ std::optional<OwnShipState> intercept_pi::LiveFix() const {
 }
 
 void intercept_pi::ApplyCase(const Case& c,
-                             const std::optional<OwnShipState>& own) {
+                             const std::optional<OwnShipState>& own,
+                             bool show_target, bool show_lines) {
   m_case = c;
-  UpdateChartObjects(c, own);
+  UpdateChartObjects(c, own, show_target, show_lines);
   RequestRefresh(m_parent_window);
 }
 
 void intercept_pi::UpdateChartObjects(const Case& c,
-                                      const std::optional<OwnShipState>& own) {
+                                      const std::optional<OwnShipState>& own,
+                                      bool show_target, bool show_lines) {
   // Three objects, all delete-before-add on fixed GUIDs so a recalculation
   // replaces rather than piles up:
   //   * "Target" mark  -- the reported position, left where it was reported
@@ -421,9 +423,11 @@ void intercept_pi::UpdateChartObjects(const Case& c,
 
   g = kTargetMarkGuid;
   DeleteSingleWaypoint(g);
-  PlugIn_Waypoint target(c.lat, c.lon, wxT("activepoint"), _("Target"),
-                         kTargetMarkGuid);
-  AddSingleWaypoint(&target, /*b_permanent=*/true);
+  if (show_target) {
+    PlugIn_Waypoint target(c.lat, c.lon, wxT("activepoint"), _("Target"),
+                           kTargetMarkGuid);
+    AddSingleWaypoint(&target, /*b_permanent=*/true);
+  }
 
   g = kInterceptMarkGuid;
   DeleteSingleWaypoint(g);
@@ -435,7 +439,7 @@ void intercept_pi::UpdateChartObjects(const Case& c,
   DeletePlugInTrack(g);
   const bool drifted =
       std::fabs(c.aged_lat - c.lat) > 1e-7 || std::fabs(c.aged_lon - c.lon) > 1e-7;
-  if (drifted) {
+  if (show_lines && drifted) {
     auto* track = new PlugIn_Track();
     track->m_NameString = _("Target drift");
     track->m_GUID = kDriftTrackGuid;
@@ -447,7 +451,12 @@ void intercept_pi::UpdateChartObjects(const Case& c,
     AddPlugInTrack(track, /*b_permanent=*/true);
   }
 
-  UpdateCourseRoute(c, own);
+  if (show_lines) {
+    UpdateCourseRoute(c, own);
+  } else {
+    wxString route_guid = kCourseRouteGuid;
+    DeletePlugInRoute(route_guid);
+  }
 }
 
 void intercept_pi::OnPanelClosed() {

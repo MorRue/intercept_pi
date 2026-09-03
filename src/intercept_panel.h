@@ -34,9 +34,13 @@ public:
 private:
   void OnRecalculate(wxCommandEvent& event);
   void OnBrowseGrib(wxCommandEvent& event);
+  void OnClearGrib(wxCommandEvent& event);
   void OnClose(wxCloseEvent& event);
   void OnLockToggled(wxCommandEvent& event);
   void OnManualOwnToggled(wxCommandEvent& event);
+  // Re-applies the last computed case with the current show/hide checkboxes so
+  // the chart redraws immediately, without a full recalculation.
+  void OnDisplayToggled(wxCommandEvent& event);
 
   // Fills the output rows from a finalised case + effective own-ship, or
   // shows why the course to steer is unavailable.
@@ -48,6 +52,8 @@ private:
   wxCheckBox* m_lock_position;
   wxCheckBox* m_lock_time;
   wxCheckBox* m_use_manual_own;
+  wxCheckBox* m_show_target;  // Draw the "Target" mark at the reported position.
+  wxCheckBox* m_show_routes;  // Draw the drift track and course-to-steer route.
 
   wxTextCtrl* m_position_ctrl;
   wxDatePickerCtrl* m_date_ctrl;
@@ -59,6 +65,11 @@ private:
   wxSpinCtrlDouble* m_drift_ctrl;
   wxTextCtrl* m_own_pos_ctrl;
   wxSpinCtrlDouble* m_own_sog_ctrl;
+
+  // The most recent finalised case and effective own-ship, kept so the display
+  // checkboxes can redraw the chart without re-parsing the inputs.
+  std::optional<Case> m_last_case;
+  std::optional<OwnShipState> m_last_own;
 
   wxStaticText* m_out_datum;
   wxStaticText* m_out_drift;
