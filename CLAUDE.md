@@ -41,16 +41,16 @@ symbols — like a `ServiceLoader` entry point.
 
 ## State
 
-Working skeleton, confirmed loading in OpenCPN 5.8.4 on Linux — it appears
-in Options > Plugins and its toolbar button renders. It subscribes to
-`WANTS_NMEA_EVENTS` for own-ship position and displays that position on
-click. This is a placeholder that proves the toolbar wiring and the position
-feed — the two things every later feature depends on.
+Loads in OpenCPN 5.8.4. The toolbar button toggles `InterceptPanel` — a
+non-modal window carrying the case inputs and the computed course to steer;
+[Recalculate] ages the datum, computes bearing/distance/ETA, and draws a
+"Datum" mark plus an activatable "Course to steer" route on the chart.
 
-`src/` is `intercept_pi.{h,cpp}`, `case_dialog.{h,cpp}` (the case-intake
-dialog, merged), and the `plug_utils` icon helpers. ShipDriver's AIS maker,
-GRIB record classes and simulator GUI were deleted; the GRIB classes come
-back with the drift work (see "Next").
+`src/`: `intercept_pi.{h,cpp}` (plugin entry points, `Case`, coordinate
+parsing), `intercept_panel.{h,cpp}` (the UI), `datum_age.{h,cpp}` +
+`grib_reader.{h,cpp}` (datum ageing), `intercept.{h,cpp}` (course to steer),
+`format.{h,cpp}` (output formatting), `route_helper.{h,cpp}`, `portability.h`,
+`plug_utils` (icons). ShipDriver's AIS maker and simulator GUI were deleted.
 
 ## Planned direction (IAMSAR Vol. III mechanics)
 
@@ -184,19 +184,20 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    ETA case. Keep the API additive.
 
 2. **Show the course to steer — v0.1** (GUI; small steps). Two parts:
-   - **(a) Readout** — after the case dialog OKs, run `FinalizeDatum()` +
-     `CourseToSteer()` and show datum lat/lon, bearing, distance, ETA, and
-     `elapsed` if the datum was aged. A read-only results dialog. Number
-     formatting is pure — unit-test it. Own-ship comes from OpenCPN's live
-     fix (`SetPositionFix`), but the case dialog also has optional
-     **Own ship** position/speed fields (pre-filled from the live fix,
-     editable, blank = use the fix) so you can plan from a hypothetical
-     position or with no GPS. Position but no speed → bearing + distance,
-     no ETA. No position at all → datum only. The case dialog also has
-     optional **Target drift set/rate** fields — hand-entered set & drift
-     wired to `ComputeAgedDatum`'s `ManualSetAndDrift` (used only when no
-     GRIB file is given); the results dialog shows which drift source was
-     applied.
+   - **(a) The panel** (`src/intercept_panel.{h,cpp}`, `InterceptPanel`) — a
+     **non-modal `wxFrame`** (float-on-parent, tool window) toggled by the
+     toolbar button. OpenCPN stays fully interactive while it's open; the
+     `[x]` hides it (state kept), `DeInit` destroys it. It holds **both** the
+     inputs — reported position, time, craft, POB, GRIB, **Target drift
+     set/rate** (hand-entered set & drift → `ComputeAgedDatum`'s
+     `ManualSetAndDrift`, used only when no GRIB), **Own ship** position/speed
+     override (blank = the live `SetPositionFix`) — and the **outputs** —
+     datum, which drift source was applied, elapsed, bearing/distance/ETA.
+     **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
+     the output rows in place, and calls `intercept_pi::ApplyCase()` to
+     refresh the chart. Position but no speed → bearing + distance, no ETA;
+     no position at all → datum only. Number formatting is pure
+     (`format.{h,cpp}`) and unit-tested.
    - **(b) On the chart** *(done in the v0.1 PR)*: a **datum mark** via
      `AddSingleWaypoint`, plus an activatable **"Course to steer" route**
      (own-ship → datum) via `AddPlugInRoute`. Both use fixed GUIDs and

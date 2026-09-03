@@ -18,8 +18,11 @@
 #include <wx/datetime.h>
 
 #include <optional>
+#include <vector>
 
 #include "ocpn_plugin.h"
+
+class InterceptPanel;
 
 /** Let OpenCPN choose where the toolbar button lands. */
 #define INTERCEPT_TOOL_POSITION -1
@@ -51,8 +54,7 @@ struct Case {
   /**
    * Ages (lat, lon) forward to now using GribReader on grib_file_path when
    * one is set, otherwise zero drift, and stores the result in aged_lat/
-   * aged_lon/elapsed. Call once the rest of the case is populated -- i.e.
-   * when the case is finalised, from CaseDialog::OnOK.
+   * aged_lon/elapsed. Call once the rest of the case is populated.
    */
   void FinalizeDatum();
 };
@@ -85,6 +87,18 @@ struct PositionParseResult {
  */
 PositionParseResult ParseCoordinate(const wxString& text, bool is_latitude);
 
+/**
+ * Splits free-form position text into a latitude and a longitude part. A
+ * comma is the preferred separator ("45 30.5 N, 015 20.3 E"); without one,
+ * the split falls right after the first N/S hemisphere letter. Returns false
+ * if it cannot find two non-empty parts.
+ */
+bool SplitPosition(const wxString& text, wxString* lat_text,
+                   wxString* lon_text);
+
+/** The craft-type labels offered in the input panel, in menu order. */
+std::vector<wxString> CraftTypeLabels();
+
 class intercept_pi : public opencpn_plugin_118 {
 public:
   explicit intercept_pi(void* ppimgr);
@@ -107,6 +121,14 @@ public:
   // --- Events we subscribe to in Init() ------------------------------------
   void SetPositionFix(PlugIn_Position_Fix& pfix) override;
   void OnToolbarToolCallback(int id) override;
+
+  // --- Called by the InterceptPanel ---------------------------------------
+  /** OpenCPN's live own-ship fix, or nullopt until the first one arrives. */
+  std::optional<OwnShipState> LiveFix() const;
+  /** Store the case and (re)draw the datum mark + course route on the chart. */
+  void ApplyCase(const Case& c, const std::optional<OwnShipState>& own);
+  /** The panel was closed by its own [x] -- clear the toolbar toggle. */
+  void OnPanelClosed();
 
 private:
   /**
@@ -136,8 +158,12 @@ private:
   double m_own_cog;
   double m_own_sog;
 
-  /** The current case, if one has been entered via the case dialog. */
+  /** The current case, if one has been entered. */
   std::optional<Case> m_case;
+
+  /** The persistent, non-modal input/output panel. Created on first toolbar
+   *  click, hidden (not destroyed) on close, destroyed in DeInit(). */
+  InterceptPanel* m_panel = nullptr;
 };
 
 #endif  // INTERCEPT_PI_H__
