@@ -44,6 +44,7 @@ const wxString kEstimatedMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a001");
 const wxString kCourseRouteGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a002");
 const wxString kTargetMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a003");
 const wxString kDriftTrackGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a004");
+const wxString kInterceptMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a005");
 
 // Surface current + wind-driven leeway realistically stays well under this
 // even in a gale; a hand-typed drift_kt above it is a data-entry mistake
@@ -352,6 +353,7 @@ bool intercept_pi::DeInit() {
   wxString g;
   g = kEstimatedMarkGuid; DeleteSingleWaypoint(g);
   g = kTargetMarkGuid;    DeleteSingleWaypoint(g);
+  g = kInterceptMarkGuid; DeleteSingleWaypoint(g);
   g = kDriftTrackGuid;    DeletePlugInTrack(g);
   g = kCourseRouteGuid;   DeletePlugInRoute(g);
   return true;
@@ -413,12 +415,16 @@ void intercept_pi::UpdateChartObjects(const Case& c,
                                       const std::optional<OwnShipState>& own,
                                       bool show_target, bool show_estimated,
                                       bool show_lines) {
-  // Four objects, all delete-before-add on fixed GUIDs so a recalculation
-  // replaces rather than piles up, each independently suppressible:
-  //   * "Target" mark  -- the reported position, left where it was reported
+  // Five objects, all delete-before-add on fixed GUIDs so a recalculation
+  // replaces rather than piles up:
+  //   * "Target" mark  -- the reported position (show_target)
   //   * "Estimated position" mark -- the aged datum, where the target is now
-  //   * "Target drift"  -- a track from the reported position to the datum
-  //   * "Course to steer" -- an activatable route from own-ship to the datum
+  //     (show_estimated)
+  //   * "Intercept" mark -- where own-ship's course meets the target; drawn
+  //     with the routes (show_lines). In the v0.1 model this coincides with
+  //     the estimated position; a moving-target solution will separate them.
+  //   * "Target drift" track -- reported position to datum (show_lines)
+  //   * "Course to steer" route -- own-ship to the intercept (show_lines)
   // Route and track render in different colours (OpenCPN's route vs track
   // styles), so the two lines are visually distinct.
   wxString g;
@@ -455,12 +461,9 @@ void intercept_pi::UpdateChartObjects(const Case& c,
     AddPlugInTrack(track, /*b_permanent=*/true);
   }
 
-  if (show_lines) {
-    UpdateCourseRoute(c, own);
-  } else {
-    wxString route_guid = kCourseRouteGuid;
-    DeletePlugInRoute(route_guid);
-  }
+  // Passing nullopt makes UpdateCourseRoute tear down both the route and the
+  // intercept mark, so "Show routes" off removes them.
+  UpdateCourseRoute(c, show_lines ? own : std::nullopt);
 }
 
 void intercept_pi::OnPanelClosed() {
@@ -472,6 +475,8 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
                                      const std::optional<OwnShipState>& own) {
   wxString guid = kCourseRouteGuid;
   DeletePlugInRoute(guid);
+  wxString mark = kInterceptMarkGuid;
+  DeleteSingleWaypoint(mark);
 
   // No own-ship position means there is no course line to draw -- the marks
   // still show target and estimated position, and the panel still gives
@@ -484,14 +489,21 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   auto* route = new PlugIn_Route();
   route->m_NameString = _("Course to steer");
   route->m_StartString = _("Own ship");
-  route->m_EndString = _("Estimated position");
+  route->m_EndString = _("Intercept");
   route->m_GUID = kCourseRouteGuid;
   route->pWaypointList = new Plugin_WaypointList();
   route->pWaypointList->Append(new PlugIn_Waypoint(
       points[0].lat, points[0].lon, wxT("circle"), _("Own ship")));
   route->pWaypointList->Append(new PlugIn_Waypoint(
-      points[1].lat, points[1].lon, wxT("circle"), _("Estimated position")));
+      points[1].lat, points[1].lon, wxT("circle"), _("Intercept")));
 
   // Ordinary activatable route, so the navigator can select and steer it.
   AddPlugInRoute(route, /*b_permanent=*/true);
+
+  // The intercept: the far end of the course line. A "diamond" icon keeps it
+  // distinct from the "circle" estimated-position mark it sits on top of
+  // until a moving-target solution moves it downrange.
+  PlugIn_Waypoint intercept(points[1].lat, points[1].lon, wxT("diamond"),
+                            _("Intercept"), kInterceptMarkGuid);
+  AddSingleWaypoint(&intercept, /*b_permanent=*/true);
 }

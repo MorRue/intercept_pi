@@ -211,15 +211,21 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    - **(b) On the chart** *(done in the v0.1 PR)*, all on fixed GUIDs,
      delete-before-add, removed on `DeInit`:
      - **"Target" mark** at the reported position (left where reported;
-       "Show reported position");
-     - **"Estimated position" mark** at the aged datum, where the target is
-       estimated to be now ("Show estimated position"). In the v0.1 model this
-       point is also the course-to-steer endpoint (non-moving target);
+       toggle "Show reported position");
+     - **"Estimated position" mark** (circle) at the aged datum, where the
+       target is estimated to be now (toggle "Show estimated position");
+     - **"Intercept" mark** (diamond) at the far end of the course line —
+       where own-ship's course meets the target. Visibility tied to "Show
+       routes". In the v0.1 model it coincides with the estimated position; a
+       moving-target solution (#5) will move it downrange;
      - **"Target drift" track** (`AddPlugInTrack`) reported → datum;
      - **"Course to steer" route** (`AddPlugInRoute`, activatable) own-ship
-       → datum.
-     The track and route (the two "routes") are suppressed together when
-     "Show routes" is off. `kEstimatedMarkGuid` is …a001.
+       → intercept.
+     The track, route and intercept mark (everything under "routes") are
+     suppressed together when "Show routes" is off — `UpdateChartObjects`
+     calls `UpdateCourseRoute(c, show_lines ? own : nullopt)` and the nullopt
+     path tears down both the route and the mark. GUIDs …a001 estimated,
+     …a002 route, …a003 target, …a004 drift track, …a005 intercept.
      Route and track render in OpenCPN's different route/track styles, which
      is how the two lines come out visually distinct without a custom
      overlay. **MSVC gotcha:** `Plugin_WaypointList`'s node methods are
