@@ -193,12 +193,19 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      box behaves identically: **checked ⇒ the field is disabled**. Reported
      position and time start unlocked; own-ship position and speed start
      locked (so the live `SetPositionFix` is used) and are unlocked
-     independently to hand-enter one without the other. Also craft type
-     (defaults to "Unknown"), optional POB, GRIB (row has **Browse…** and
-     **Clear**), **Target drift set/rate** (hand-entered set & drift →
-     `ComputeAgedDatum`'s `ManualSetAndDrift`, used only when no GRIB), plus
-     three **display checkboxes** ("Show reported position", "Show estimated
-     position", "Show routes", all on) that hide/show the chart objects live
+     independently to hand-enter one without the other.
+     **Target drift set/rate** (hand-entered set & drift →
+     `ComputeAgedDatum`'s `ManualSetAndDrift`, used only when no GRIB).
+     A **`wxCollapsiblePane`** ("GRIB file … + craft details", collapsed by
+     default) holds the GRIB row (**Browse…** / **Clear**), craft type
+     (defaults to "Unknown") and optional POB — the GRIB is the alternative
+     to manual drift. `UpdateGribLock()`: while a GRIB path is set, the two
+     Target-drift fields are disabled and the pane is force-expanded (so
+     Clear stays reachable); `OnGribPaneChanged` snaps it back open if the
+     user tries to collapse it with a file loaded. `RelayoutForPane()`
+     (`Layout()`+`Fit()`) re-flows the frame on collapse/expand.
+     Plus three **display checkboxes** ("Show reported position", "Show
+     estimated position", "Show routes", all on) that hide/show chart objects
      — and the **outputs** — datum,
      drift source, "target moved from report", elapsed, bearing/distance/ETA.
      **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
