@@ -32,7 +32,11 @@ public:
   InterceptPanel(wxWindow* parent, intercept_pi* plugin);
 
 private:
+  // Thin wrapper: catches any exception so it can't escape the wx event
+  // loop into OpenCPN (which would abort the process). Real work in
+  // DoRecalculate().
   void OnRecalculate(wxCommandEvent& event);
+  void DoRecalculate();
   void OnBrowseGrib(wxCommandEvent& event);
   void OnClearGrib(wxCommandEvent& event);
   void OnClose(wxCloseEvent& event);
