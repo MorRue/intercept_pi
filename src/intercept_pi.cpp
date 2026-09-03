@@ -22,6 +22,7 @@
 #include "grib_reader.h"
 #include "intercept_pi.h"
 #include "plug_utils.h"
+#include "results_dialog.h"
 
 namespace {
 
@@ -292,5 +293,10 @@ void intercept_pi::SetPositionFix(PlugIn_Position_Fix& pfix) {
 
 void intercept_pi::OnToolbarToolCallback(int id) {
   CaseDialog dlg(m_parent_window);
-  if (dlg.ShowModal() == wxID_OK) m_case = dlg.GetCase();
+  if (dlg.ShowModal() == wxID_OK) {
+    m_case = dlg.GetCase();
+    InterceptResultsDialog results(m_parent_window, *m_case, m_have_fix,
+                                    m_own_lat, m_own_lon, m_own_sog);
+    results.ShowModal();
+  }
 }
