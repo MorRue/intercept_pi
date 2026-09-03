@@ -187,26 +187,28 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    - **(a) The panel** (`src/intercept_panel.{h,cpp}`, `InterceptPanel`) — a
      **non-modal `wxFrame`** (float-on-parent, tool window) toggled by the
      toolbar button. OpenCPN stays fully interactive while it's open; the
-     `[x]` hides it (state kept), `DeInit` destroys it. Inputs are in four
+     `[x]` hides it (state kept), `DeInit` destroys it. Inputs are in
      **`wxStaticBoxSizer` group boxes** (titles set a notch smaller via
-     `GetFont().Smaller()` after the children exist), in this order: **Own
-     ship** (position, speed), **Report** (reported position, time of
-     report), **Target drift** (set, rate — hand-entered →
-     `ComputeAgedDatum`'s `ManualSetAndDrift`, used only when no GRIB),
-     **Environment (GRIB file) + craft** (GRIB row with **Browse…** /
-     **Clear**, craft type defaulting to "Unknown", optional POB).
-     Position/time/own-ship fields
-     **each have a "lock" checkbox to their right** — checked ⇒ field
-     disabled; own-ship pos/speed start locked (live `SetPositionFix` used),
-     report fields start unlocked. `UpdateGribLock()`: while a GRIB path is
-     set the two Target-drift fields are disabled (file wind+current win).
-     Plus three **display checkboxes** ("Show reported position", "Show
-     estimated position", "Show routes", all on) that hide/show chart objects.
-     Every input control (and the lock checkboxes, Browse and Recalculate)
-     carries a `SetToolTip()` explanation; text position fields also use
+     `GetFont().Smaller()`, applied after every box + child exists so only
+     the labels shrink), top to bottom: **Own ship** (position, speed),
+     **Report** (reported position, time of report), **Target drift** — one
+     box with two bold sub-headers, "Explicit drift (ignored when a GRIB
+     file is set)" (set, rate → `ComputeAgedDatum`'s `ManualSetAndDrift`)
+     and "Environment drift (from a GRIB file…)" (GRIB row **Browse…** /
+     **Clear**, craft type default "Unknown", optional POB). Position/time/
+     own-ship fields **each have a "lock" checkbox to their right** — checked
+     ⇒ field disabled; own-ship pos/speed start locked (live `SetPositionFix`
+     used), report fields start unlocked. `UpdateGribLock()`: while a GRIB
+     path is set the two explicit-drift fields are disabled (file
+     wind+current win).
+     Then a **"Result" box** — datum, drift source, "target moved from
+     report", elapsed, bearing, distance, and an ETA row that also carries
+     the **[Recalculate]** button (bottom-right, same row, no row of its
+     own). Below the box, three **display checkboxes** ("Show reported
+     position", "Show estimated position", "Show routes", all on) hide/show
+     chart objects. Every input control (and the lock checkboxes, Browse and
+     Recalculate) carries a `SetToolTip()`; text position fields also use
      `SetHint()` placeholders.
-     Then the **outputs** — datum,
-     drift source, "target moved from report", elapsed, bearing/distance/ETA.
      **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
      the output rows in place, and calls
      `intercept_pi::ApplyCase(c, own, show_target, show_estimated, show_lines)`

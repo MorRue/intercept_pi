@@ -11,7 +11,6 @@
 #endif
 #include <wx/checkbox.h>
 #include <wx/filedlg.h>
-#include <wx/statline.h>
 
 #include <cmath>
 #include <vector>
@@ -171,73 +170,89 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
            1, wxEXPAND);
   }
 
-  // --- Target drift ---
-  begin_group(_("Target drift (used only without a GRIB file)"));
-  g->Add(plain(gp, _("Set (deg true):")), 0, wxALIGN_CENTER_VERTICAL);
-  m_set_ctrl = new wxSpinCtrlDouble(gp, wxID_ANY, wxEmptyString,
-                                    wxDefaultPosition, wxDefaultSize,
-                                    wxSP_ARROW_KEYS, 0.0, 359.9, 0.0, 1.0);
-  m_set_ctrl->SetToolTip(
-      _("Direction the target is drifting TOWARD, degrees true (0-359). "
-        "Used only when no GRIB file is set."));
-  g->Add(m_set_ctrl, 0);
-  g->Add(plain(gp, _("Rate (kt):")), 0, wxALIGN_CENTER_VERTICAL);
-  m_drift_ctrl = new wxSpinCtrlDouble(gp, wxID_ANY, wxEmptyString,
-                                      wxDefaultPosition, wxDefaultSize,
-                                      wxSP_ARROW_KEYS, 0.0, 20.0, 0.0, 0.1);
-  m_drift_ctrl->SetToolTip(
-      _("How fast the target is drifting, knots. 0 means no manual drift "
-        "(datum stays at the reported position). Used only when no GRIB "
-        "file is set."));
-  g->Add(m_drift_ctrl, 0);
-
-  // --- Environment / craft ---
-  begin_group(_("Environment (GRIB file) + craft"));
-  g->Add(plain(gp, _("GRIB file:")), 0, wxALIGN_CENTER_VERTICAL);
+  // --- Target drift: explicit and GRIB-derived, one box, two sub-headers ---
   {
-    auto* grib_row = new wxBoxSizer(wxHORIZONTAL);
-    m_grib_path_ctrl = new wxTextCtrl(gp, wxID_ANY, wxEmptyString,
-                                      wxDefaultPosition, wxDefaultSize,
-                                      wxTE_READONLY);
-    m_grib_path_ctrl->SetToolTip(
-        _("Optional GRIB2 file holding 10 m wind and/or surface current. "
-          "When set it drives the datum drift and the Target-drift fields "
-          "above are disabled."));
-    grib_row->Add(m_grib_path_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-    auto* browse = new wxButton(gp, wxID_ANY, _("Browse..."));
-    browse->SetToolTip(
-        _("Choose a GRIB2 file (.grb, .grb2, .grib, .grib2, .gr2, .bin)."));
-    grib_row->Add(browse, 0, wxLEFT, 6);
-    auto* clear_grib = new wxButton(gp, wxID_ANY, _("Clear"));
-    clear_grib->SetToolTip(_("Remove the GRIB file; re-enable manual drift"));
-    grib_row->Add(clear_grib, 0, wxLEFT, 6);
-    g->Add(grib_row, 1, wxEXPAND);
-    browse->Bind(wxEVT_BUTTON, &InterceptPanel::OnBrowseGrib, this);
-    clear_grib->Bind(wxEVT_BUTTON, &InterceptPanel::OnClearGrib, this);
-  }
-  g->Add(plain(gp, _("Craft type:")), 0, wxALIGN_CENTER_VERTICAL);
-  m_craft_choice = new wxChoice(gp, wxID_ANY);
-  for (const auto& label : CraftTypeLabels()) m_craft_choice->Append(label);
-  m_craft_choice->SetSelection(0);  // "Unknown / not specified"
-  m_craft_choice->SetToolTip(
-      _("The kind of object being tracked. Sets the leeway coefficient "
-        "(percentage of wind speed) applied when a GRIB supplies wind."));
-  g->Add(m_craft_choice, 1, wxEXPAND);
-  g->Add(plain(gp, _("Persons on board (optional):")), 0,
-         wxALIGN_CENTER_VERTICAL);
-  m_pob_ctrl = new wxSpinCtrl(gp, wxID_ANY, "0", wxDefaultPosition,
-                              wxDefaultSize, wxSP_ARROW_KEYS, 0, 999, 0);
-  m_pob_ctrl->SetToolTip(
-      _("Number of people in the craft. Recorded with the case; it does "
-        "not affect the calculation."));
-  g->Add(m_pob_ctrl, 0);
+    auto* box = new wxStaticBoxSizer(wxVERTICAL, panel, _("Target drift"));
+    wxWindow* bp = box->GetStaticBox();
+    group_boxes.push_back(box->GetStaticBox());
 
-  // Group-box titles a notch smaller than the body text. Set after the
-  // children exist so only the box labels shrink, not the fields.
-  wxFont group_font = panel->GetFont();
-  if (group_font.IsOk()) {
-    group_font = group_font.Smaller();
-    for (wxStaticBox* b : group_boxes) b->SetFont(group_font);
+    auto subhead = [&](const wxString& text) {
+      auto* st = new wxStaticText(bp, wxID_ANY, text);
+      wxFont bf = st->GetFont();
+      bf.MakeBold();
+      st->SetFont(bf);
+      box->Add(st, 0, wxLEFT | wxRIGHT | wxTOP, 6);
+    };
+    auto subgrid = [&]() {
+      auto* fg = new wxFlexGridSizer(0, 2, 6, 8);
+      fg->AddGrowableCol(1);
+      box->Add(fg, 0, wxEXPAND | wxALL, 6);
+      return fg;
+    };
+
+    subhead(_("Explicit drift (ignored when a GRIB file is set)"));
+    auto* eg = subgrid();
+    eg->Add(plain(bp, _("Set (deg true):")), 0, wxALIGN_CENTER_VERTICAL);
+    m_set_ctrl = new wxSpinCtrlDouble(bp, wxID_ANY, wxEmptyString,
+                                      wxDefaultPosition, wxDefaultSize,
+                                      wxSP_ARROW_KEYS, 0.0, 359.9, 0.0, 1.0);
+    m_set_ctrl->SetToolTip(
+        _("Direction the target is drifting TOWARD, degrees true (0-359). "
+          "Used only when no GRIB file is set."));
+    eg->Add(m_set_ctrl, 0);
+    eg->Add(plain(bp, _("Rate (kt):")), 0, wxALIGN_CENTER_VERTICAL);
+    m_drift_ctrl = new wxSpinCtrlDouble(bp, wxID_ANY, wxEmptyString,
+                                        wxDefaultPosition, wxDefaultSize,
+                                        wxSP_ARROW_KEYS, 0.0, 20.0, 0.0, 0.1);
+    m_drift_ctrl->SetToolTip(
+        _("How fast the target is drifting, knots. 0 means no explicit "
+          "drift (datum stays at the reported position). Used only when no "
+          "GRIB file is set."));
+    eg->Add(m_drift_ctrl, 0);
+
+    subhead(_("Environment drift (from a GRIB file; craft type sets leeway)"));
+    auto* ng = subgrid();
+    ng->Add(plain(bp, _("GRIB file:")), 0, wxALIGN_CENTER_VERTICAL);
+    {
+      auto* grib_row = new wxBoxSizer(wxHORIZONTAL);
+      m_grib_path_ctrl = new wxTextCtrl(bp, wxID_ANY, wxEmptyString,
+                                        wxDefaultPosition, wxDefaultSize,
+                                        wxTE_READONLY);
+      m_grib_path_ctrl->SetToolTip(
+          _("Optional GRIB2 file holding 10 m wind and/or surface current. "
+            "When set it drives the datum drift and the explicit-drift "
+            "fields above are disabled."));
+      grib_row->Add(m_grib_path_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
+      auto* browse = new wxButton(bp, wxID_ANY, _("Browse..."));
+      browse->SetToolTip(
+          _("Choose a GRIB2 file (.grb, .grb2, .grib, .grib2, .gr2, .bin)."));
+      grib_row->Add(browse, 0, wxLEFT, 6);
+      auto* clear_grib = new wxButton(bp, wxID_ANY, _("Clear"));
+      clear_grib->SetToolTip(
+          _("Remove the GRIB file; re-enable the explicit-drift fields"));
+      grib_row->Add(clear_grib, 0, wxLEFT, 6);
+      ng->Add(grib_row, 1, wxEXPAND);
+      browse->Bind(wxEVT_BUTTON, &InterceptPanel::OnBrowseGrib, this);
+      clear_grib->Bind(wxEVT_BUTTON, &InterceptPanel::OnClearGrib, this);
+    }
+    ng->Add(plain(bp, _("Craft type:")), 0, wxALIGN_CENTER_VERTICAL);
+    m_craft_choice = new wxChoice(bp, wxID_ANY);
+    for (const auto& label : CraftTypeLabels()) m_craft_choice->Append(label);
+    m_craft_choice->SetSelection(0);  // "Unknown / not specified"
+    m_craft_choice->SetToolTip(
+        _("The kind of object being tracked. Sets the leeway coefficient "
+          "(percentage of wind speed) applied when a GRIB supplies wind."));
+    ng->Add(m_craft_choice, 1, wxEXPAND);
+    ng->Add(plain(bp, _("Persons on board (optional):")), 0,
+            wxALIGN_CENTER_VERTICAL);
+    m_pob_ctrl = new wxSpinCtrl(bp, wxID_ANY, "0", wxDefaultPosition,
+                                wxDefaultSize, wxSP_ARROW_KEYS, 0, 999, 0);
+    m_pob_ctrl->SetToolTip(
+        _("Number of people aboard. Recorded with the case; it does not "
+          "affect the calculation."));
+    ng->Add(m_pob_ctrl, 0);
+
+    outer->Add(box, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
   }
 
   // Own-ship position and speed start locked: use the live GPS fix by default,
@@ -247,6 +262,39 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_own_pos_ctrl->Enable(false);
   m_own_sog_ctrl->Enable(false);
 
+  // -- result box; Recalculate shares the ETA row, bottom-right --
+  {
+    auto* box = new wxStaticBoxSizer(wxVERTICAL, panel, _("Result"));
+    wxWindow* bp = box->GetStaticBox();
+    group_boxes.push_back(box->GetStaticBox());
+
+    auto* out = new wxFlexGridSizer(0, 2, 4, 12);
+    out->AddGrowableCol(1);
+    m_out_datum = AddRow(bp, out, _("Datum (intercept point):"));
+    m_out_drift = AddRow(bp, out, _("Drift applied:"));
+    m_out_moved = AddRow(bp, out, _("Target moved from report:"));
+    m_out_elapsed = AddRow(bp, out, _("Elapsed since report:"));
+    m_out_bearing = AddRow(bp, out, _("Bearing to steer:"));
+    m_out_distance = AddRow(bp, out, _("Distance:"));
+
+    out->Add(new wxStaticText(bp, wxID_ANY, _("ETA:")), 0,
+             wxALIGN_CENTER_VERTICAL);
+    auto* eta_row = new wxBoxSizer(wxHORIZONTAL);
+    m_out_eta = new wxStaticText(bp, wxID_ANY, wxT("--"));
+    eta_row->Add(m_out_eta, 1, wxALIGN_CENTER_VERTICAL);
+    auto* recalc = new wxButton(bp, wxID_ANY, _("Recalculate"));
+    recalc->SetToolTip(
+        _("Age the datum to the current time and recompute the course to "
+          "steer from the inputs above, then redraw the chart."));
+    eta_row->Add(recalc, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
+    out->Add(eta_row, 1, wxEXPAND);
+    recalc->Bind(wxEVT_BUTTON, &InterceptPanel::OnRecalculate, this);
+
+    box->Add(out, 1, wxEXPAND | wxALL, 6);
+    outer->Add(box, 0, wxEXPAND | wxALL, 10);
+  }
+
+  // -- chart display toggles, at the very bottom, under the result box --
   auto* disp_row = new wxBoxSizer(wxHORIZONTAL);
   m_show_target = new wxCheckBox(panel, wxID_ANY, _("Show reported position"));
   m_show_target->SetValue(true);
@@ -269,31 +317,19 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   disp_row->Add(m_show_routes, 0, wxALIGN_CENTER_VERTICAL);
   outer->Add(disp_row, 0, wxALL, 10);
 
-  auto* recalc = new wxButton(panel, wxID_ANY, _("Recalculate"));
-  recalc->SetToolTip(
-      _("Age the datum to the current time and recompute the course to "
-        "steer from the inputs above, then redraw the chart."));
-  outer->Add(recalc, 0, wxALIGN_RIGHT | wxRIGHT | wxBOTTOM, 10);
-
-  outer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
-
-  // -- outputs --
-  auto* out = new wxFlexGridSizer(0, 2, 4, 12);
-  m_out_datum = AddRow(panel, out, _("Datum (intercept point):"));
-  m_out_drift = AddRow(panel, out, _("Drift applied:"));
-  m_out_moved = AddRow(panel, out, _("Target moved from report:"));
-  m_out_elapsed = AddRow(panel, out, _("Elapsed since report:"));
-  m_out_bearing = AddRow(panel, out, _("Bearing to steer:"));
-  m_out_distance = AddRow(panel, out, _("Distance:"));
-  m_out_eta = AddRow(panel, out, _("ETA:"));
-  outer->Add(out, 0, wxEXPAND | wxALL, 10);
+  // Group-box titles a notch smaller than the body text, set now that every
+  // box and its children exist -- only the box labels shrink.
+  wxFont group_font = panel->GetFont();
+  if (group_font.IsOk()) {
+    group_font = group_font.Smaller();
+    for (wxStaticBox* b : group_boxes) b->SetFont(group_font);
+  }
 
   panel->SetSizerAndFit(outer);
   auto* frame_sizer = new wxBoxSizer(wxVERTICAL);
   frame_sizer->Add(panel, 1, wxEXPAND);
   SetSizerAndFit(frame_sizer);
 
-  recalc->Bind(wxEVT_BUTTON, &InterceptPanel::OnRecalculate, this);
   m_show_target->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   m_show_estimated->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   m_show_routes->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
