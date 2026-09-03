@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
       const double lat = 35.0, lon = 15.0;
       const wxDateTime kValidTime(static_cast<time_t>(1788220800));
       const wxDateTime now = kValidTime + wxTimeSpan::Minutes(30);
-      const wxString craft_type = "Rubber boat (inflatable, RIB, liferaft)";
+      const wxString craft_type = "Rubber boat (inflatable / RIB)";
 
       EnvSample wind = grib.LookupWind(lat, lon, kValidTime);
       Check(wind.available,
