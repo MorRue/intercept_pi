@@ -67,6 +67,10 @@ set(SRC
     src/datum_age.cpp
     src/intercept.h
     src/intercept.cpp
+    src/format.h
+    src/format.cpp
+    src/route_helper.h
+    src/route_helper.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )
