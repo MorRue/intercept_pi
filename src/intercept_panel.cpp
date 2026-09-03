@@ -175,9 +175,13 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   auto* disp_row = new wxBoxSizer(wxHORIZONTAL);
   m_show_target = new wxCheckBox(panel, wxID_ANY, _("Show reported position"));
   m_show_target->SetValue(true);
+  m_show_estimated =
+      new wxCheckBox(panel, wxID_ANY, _("Show estimated position"));
+  m_show_estimated->SetValue(true);
   m_show_routes = new wxCheckBox(panel, wxID_ANY, _("Show routes"));
   m_show_routes->SetValue(true);
   disp_row->Add(m_show_target, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+  disp_row->Add(m_show_estimated, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
   disp_row->Add(m_show_routes, 0, wxALIGN_CENTER_VERTICAL);
   outer->Add(disp_row, 0, wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
@@ -206,6 +210,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   browse->Bind(wxEVT_BUTTON, &InterceptPanel::OnBrowseGrib, this);
   clear_grib->Bind(wxEVT_BUTTON, &InterceptPanel::OnClearGrib, this);
   m_show_target->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
+  m_show_estimated->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   m_show_routes->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   Bind(wxEVT_CLOSE_WINDOW, &InterceptPanel::OnClose, this);
   m_lock_position->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
@@ -255,6 +260,7 @@ void InterceptPanel::OnDisplayToggled(wxCommandEvent& WXUNUSED(event)) {
   // recalculation.
   if (m_last_case && m_plugin) {
     m_plugin->ApplyCase(*m_last_case, m_last_own, m_show_target->IsChecked(),
+                        m_show_estimated->IsChecked(),
                         m_show_routes->IsChecked());
   }
 }
@@ -328,6 +334,7 @@ void InterceptPanel::OnRecalculate(wxCommandEvent& WXUNUSED(event)) {
   ShowOutputs(c, own);
   if (m_plugin)
     m_plugin->ApplyCase(c, own, m_show_target->IsChecked(),
+                        m_show_estimated->IsChecked(),
                         m_show_routes->IsChecked());
   m_content->Layout();
   Fit();  // outputs may have grown/shrunk the panel's best size

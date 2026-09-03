@@ -197,25 +197,29 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      (defaults to "Unknown"), optional POB, GRIB (row has **Browse…** and
      **Clear**), **Target drift set/rate** (hand-entered set & drift →
      `ComputeAgedDatum`'s `ManualSetAndDrift`, used only when no GRIB), plus
-     two **display checkboxes** ("Show reported position", "Show routes", both on)
-     that hide/show the chart objects live — and the **outputs** — datum,
+     three **display checkboxes** ("Show reported position", "Show estimated
+     position", "Show routes", all on) that hide/show the chart objects live
+     — and the **outputs** — datum,
      drift source, "target moved from report", elapsed, bearing/distance/ETA.
      **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
      the output rows in place, and calls
-     `intercept_pi::ApplyCase(c, own, show_target, show_lines)` to refresh the
-     chart; toggling a display checkbox re-applies the stored last case. Position but no speed → bearing + distance, no ETA;
+     `intercept_pi::ApplyCase(c, own, show_target, show_estimated, show_lines)`
+     to refresh the chart; toggling a display checkbox re-applies the stored
+     last case. Position but no speed → bearing + distance, no ETA;
      no position at all → datum only. Number formatting is pure
      (`format.{h,cpp}`) and unit-tested.
    - **(b) On the chart** *(done in the v0.1 PR)*, all on fixed GUIDs,
      delete-before-add, removed on `DeInit`:
      - **"Target" mark** at the reported position (left where reported;
-       suppressed when "Show reported position" is off);
-     - **"Intercept" mark** at the aged datum (where the target is now);
-     - **"Target drift" track** (`AddPlugInTrack`) reported → intercept;
+       "Show reported position");
+     - **"Estimated position" mark** at the aged datum, where the target is
+       estimated to be now ("Show estimated position"). In the v0.1 model this
+       point is also the course-to-steer endpoint (non-moving target);
+     - **"Target drift" track** (`AddPlugInTrack`) reported → datum;
      - **"Course to steer" route** (`AddPlugInRoute`, activatable) own-ship
-       → intercept.
+       → datum.
      The track and route (the two "routes") are suppressed together when
-     "Show routes" is off.
+     "Show routes" is off. `kEstimatedMarkGuid` is …a001.
      Route and track render in OpenCPN's different route/track styles, which
      is how the two lines come out visually distinct without a custom
      overlay. **MSVC gotcha:** `Plugin_WaypointList`'s node methods are
