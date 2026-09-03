@@ -244,8 +244,11 @@ void InterceptPanel::OnLockToggled(wxCommandEvent& WXUNUSED(event)) {
 }
 
 void InterceptPanel::OnBrowseGrib(wxCommandEvent& WXUNUSED(event)) {
+  // GRIB extensions vary by source: .grb (Saildocs), .grb2 (wgrib2),
+  // .grib/.grib2 (NCEP/Copernicus), .gr2, and .bin. The "All files" filter
+  // covers anything else, including no extension at all.
   wxFileDialog fd(this, _("Select GRIB file"), wxEmptyString, wxEmptyString,
-                  _("GRIB files (*.grb;*.grb2;*.bin)|*.grb;*.grb2;*.bin|"
+                  _("GRIB files|*.grb;*.grb2;*.grib;*.grib2;*.gr2;*.bin|"
                     "All files (*.*)|*.*"),
                   wxFD_OPEN | wxFD_FILE_MUST_EXIST);
   if (fd.ShowModal() == wxID_OK) m_grib_path_ctrl->SetValue(fd.GetPath());
