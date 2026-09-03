@@ -193,16 +193,16 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      editable, blank = use the fix) so you can plan from a hypothetical
      position or with no GPS. Position but no speed → bearing + distance,
      no ETA. No position at all → datum only.
-   - **(b) A datum mark on the chart** via `AddSingleWaypoint` (fixed GUID,
-     `DeleteSingleWaypoint` before re-add so marks don't pile up, removed on
-     `DeInit`). *Done in the v0.1 PR.* A `PlugIn_Route` (activatable course
-     *line*, own-ship → datum) was tried first but `Plugin_WaypointList`'s
-     node methods are `WX_DECLARE_LIST`'d in `ocpn_plugin.h` and **not**
-     exported by the api-18 `opencpn.lib` — `new Plugin_WaypointList` +
-     `Append` fails to link on MSVC (LNK2001 `wxPlugin_WaypointListNode::
-     DeleteData`). To use a route later, add `WX_DEFINE_LIST(Plugin_WaypointList);`
-     in one `.cpp`, or use the `*_Ex` route API. `route_helper.h`'s
-     `BuildInterceptWaypoints` is staged for that / for #4's overlay line.
+   - **(b) On the chart** *(done in the v0.1 PR)*: a **datum mark** via
+     `AddSingleWaypoint`, plus an activatable **"Course to steer" route**
+     (own-ship → datum) via `AddPlugInRoute`. Both use fixed GUIDs and
+     delete-before-add so they don't pile up, and both are removed on
+     `DeInit`. **MSVC gotcha:** `Plugin_WaypointList`'s node methods are
+     `WX_DECLARE_LIST`'d in `ocpn_plugin.h` but the api-18 `opencpn.lib`
+     doesn't export them (LNK2001 `wxPlugin_WaypointListNode::DeleteData`) —
+     `intercept_pi.cpp` provides them locally under `#if defined(_MSC_VER)`
+     with `WX_DEFINE_LIST`; Linux gets them from OpenCPN's shared lib so the
+     guard must stay MSVC-only or Linux gets a duplicate-symbol error.
    Do **not** build a `RenderOverlay` custom overlay yet — see #3.
    **This is the usable v0.1.**
 

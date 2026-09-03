@@ -23,13 +23,25 @@
 #include "intercept_pi.h"
 #include "plug_utils.h"
 #include "results_dialog.h"
+#include "route_helper.h"
+
+// ocpn_plugin.h WX_DECLARE_LIST's Plugin_WaypointList but does not define its
+// node methods; OpenCPN's own shared library provides them on Linux, but the
+// MSVC import lib (opencpn-libs/api-18/msvc-wx32/opencpn.lib) does not, so
+// `new Plugin_WaypointList` + Append fails to link (LNK2001
+// wxPlugin_WaypointListNode::DeleteData). Provide them locally on MSVC only.
+#if defined(_MSC_VER)
+#include <wx/listimpl.cpp>
+WX_DEFINE_LIST(Plugin_WaypointList)
+#endif
 
 namespace {
 
-// Fixed so every recompute replaces the same mark (delete-by-GUID, then add)
-// instead of piling up a new one on the chart each time a case is confirmed.
-// Arbitrary but stable -- not looked up against anything else.
+// Fixed so every recompute replaces the same mark / route (delete-by-GUID,
+// then add) instead of piling a new one onto the chart each time a case is
+// confirmed. Arbitrary but stable -- not looked up against anything else.
 const wxString kDatumMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a001");
+const wxString kCourseRouteGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a002");
 
 /** Parses token as a number, requiring the whole token to be consumed. */
 bool ParseNumber(const std::string& token, double* out) {
@@ -265,8 +277,10 @@ int intercept_pi::Init() {
 
 bool intercept_pi::DeInit() {
   if (m_leftclick_tool_id != -1) RemovePlugInTool(m_leftclick_tool_id);
-  wxString guid = kDatumMarkGuid;
-  DeleteSingleWaypoint(guid);
+  wxString mark_guid = kDatumMarkGuid;
+  DeleteSingleWaypoint(mark_guid);
+  wxString route_guid = kCourseRouteGuid;
+  DeletePlugInRoute(route_guid);
   return true;
 }
 
@@ -305,12 +319,14 @@ void intercept_pi::OnToolbarToolCallback(int id) {
   CaseDialog dlg(m_parent_window, live_fix);
   if (dlg.ShowModal() == wxID_OK) {
     m_case = dlg.GetCase();
-    UpdateDatumMark(*m_case);
 
     // A hand-entered own-ship position (case dialog) overrides the live
     // fix; otherwise fall back to whatever SetPositionFix() last gave us.
     std::optional<OwnShipState> own = dlg.GetOwnShipOverride();
     if (!own && m_have_fix) own = live_fix;
+
+    UpdateDatumMark(*m_case);
+    UpdateCourseRoute(*m_case, own);
 
     InterceptResultsDialog results(
         m_parent_window, *m_case, own.has_value(),
@@ -325,12 +341,35 @@ void intercept_pi::UpdateDatumMark(const Case& c) {
   wxString guid = kDatumMarkGuid;
   DeleteSingleWaypoint(guid);
 
-  // v0.1 shows the datum as a single chart mark. The course *line* from
-  // own-ship to it (a PlugIn_Route, or a RenderOverlay draw) is Next #2b/#4
-  // in CLAUDE.md -- route_helper.h's BuildInterceptWaypoints is staged for
-  // it. PlugIn_Route was tried first here but pulls in an unexported
-  // Plugin_WaypointList node symbol that fails to link on the MSVC target.
   PlugIn_Waypoint mark(c.aged_lat, c.aged_lon, wxT("circle"), _("Datum"),
                        kDatumMarkGuid);
   AddSingleWaypoint(&mark, /*b_permanent=*/true);
+}
+
+void intercept_pi::UpdateCourseRoute(const Case& c,
+                                     const std::optional<OwnShipState>& own) {
+  wxString guid = kCourseRouteGuid;
+  DeletePlugInRoute(guid);
+
+  // No own-ship position means there is no course line to draw -- the datum
+  // mark still shows where the target is, and the results dialog still gives
+  // bearing/distance if a position was entered by hand.
+  if (!own) return;
+
+  std::vector<GeoPoint> points =
+      BuildInterceptWaypoints(own->lat, own->lon, c.aged_lat, c.aged_lon);
+
+  auto* route = new PlugIn_Route();
+  route->m_NameString = _("Course to steer");
+  route->m_StartString = _("Own ship");
+  route->m_EndString = _("Datum");
+  route->m_GUID = kCourseRouteGuid;
+  route->pWaypointList = new Plugin_WaypointList();
+  route->pWaypointList->Append(new PlugIn_Waypoint(
+      points[0].lat, points[0].lon, wxT("circle"), _("Own ship")));
+  route->pWaypointList->Append(new PlugIn_Waypoint(
+      points[1].lat, points[1].lon, wxT("circle"), _("Datum")));
+
+  // Ordinary activatable route, so the navigator can select and steer it.
+  AddPlugInRoute(route, /*b_permanent=*/true);
 }

@@ -105,10 +105,18 @@ private:
   /**
    * (Re)places a single chart mark at the case's datum under the fixed
    * kDatumMarkGuid, deleting whatever was there before so recomputing a
-   * case does not pile up marks. The course *line* from own-ship to the
-   * datum is Next #2b/#4 in CLAUDE.md.
+   * case does not pile up marks.
    */
   void UpdateDatumMark(const Case& c);
+
+  /**
+   * (Re)builds the two-point course-to-steer route (own-ship → datum) under
+   * kCourseRouteGuid, replacing any previous one. `own` is the effective
+   * own-ship position (live fix or the case dialog's manual override); with
+   * none, any stale route is removed and nothing is drawn.
+   */
+  void UpdateCourseRoute(const Case& c,
+                         const std::optional<OwnShipState>& own);
 
   wxWindow* m_parent_window;
   wxBitmap m_panel_bitmap;
