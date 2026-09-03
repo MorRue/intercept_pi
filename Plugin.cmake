@@ -56,6 +56,7 @@ set(PKG_HOMEPAGE https://github.com/MorRue/intercept_pi)
 set(PKG_INFO_URL https://github.com/MorRue/intercept_pi)
 
 set(SRC
+    src/portability.h
     src/intercept_pi.h
     src/intercept_pi.cpp
     src/case_dialog.h
