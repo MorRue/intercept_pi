@@ -192,7 +192,7 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      `GetFont().Smaller()`, applied after every box + child exists so only
      the labels shrink), top to bottom: **Own ship** (position, speed),
      **Report** (reported position, time of report), **Target drift** — one
-     box with two bold sub-headers, "Explicit drift (ignored when a GRIB
+     box with two italic sub-headers, "Explicit drift (ignored when a GRIB
      file is set)" (set, rate → `ComputeAgedDatum`'s `ManualSetAndDrift`)
      and "Environment drift (from a GRIB file…)" (GRIB row **Browse…** /
      **Clear**, craft type default "Unknown", optional POB). Position/time/
