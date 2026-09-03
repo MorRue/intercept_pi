@@ -9,6 +9,8 @@
 
 #include "intercept.h"
 
+#include <cmath>
+
 namespace {
 
 constexpr double kEarthRadiusNm = 3440.065;
@@ -28,6 +30,15 @@ InterceptResult CourseToSteer(double own_lat, double own_lon,
                                double target_lat, double target_lon,
                                double own_sog_kt) {
   InterceptResult result;
+
+  // A non-finite coordinate (NaN/Inf from a bad parse or an un-aged datum)
+  // would otherwise flow silently through the trig into the drawn route and
+  // the panel readout. Return the zeroed result -- distance 0, bearing 0, no
+  // ETA -- so callers show "--" rather than a course to nowhere.
+  if (!std::isfinite(own_lat) || !std::isfinite(own_lon) ||
+      !std::isfinite(target_lat) || !std::isfinite(target_lon)) {
+    return result;
+  }
 
   const double phi1 = ToRad(own_lat);
   const double phi2 = ToRad(target_lat);
