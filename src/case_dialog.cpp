@@ -65,6 +65,8 @@ CaseDialog::CaseDialog(wxWindow* parent, std::optional<OwnShipState> live_fix)
       m_craft_choice(nullptr),
       m_pob_ctrl(nullptr),
       m_grib_path_ctrl(nullptr),
+      m_set_ctrl(nullptr),
+      m_drift_ctrl(nullptr),
       m_own_pos_ctrl(nullptr),
       m_own_sog_ctrl(nullptr) {
   auto* main_sizer = new wxBoxSizer(wxVERTICAL);
@@ -107,6 +109,21 @@ CaseDialog::CaseDialog(wxWindow* parent, std::optional<OwnShipState> live_fix)
   auto* grib_browse_button = new wxButton(this, wxID_ANY, _("Browse..."));
   grib_row->Add(grib_browse_button, 0, wxLEFT, 8);
   grid->Add(grib_row, 1, wxEXPAND);
+
+  grid->Add(new wxStaticText(this, wxID_ANY, _("Target drift set (deg true):")),
+            0, wxALIGN_CENTER_VERTICAL);
+  m_set_ctrl = new wxSpinCtrlDouble(this, wxID_ANY, wxEmptyString,
+                                     wxDefaultPosition, wxDefaultSize,
+                                     wxSP_ARROW_KEYS, 0.0, 359.9, 0.0, 1.0);
+  grid->Add(m_set_ctrl, 0);
+
+  grid->Add(new wxStaticText(
+                this, wxID_ANY, _("Target drift rate (kt, 0 = use GRIB/none):")),
+            0, wxALIGN_CENTER_VERTICAL);
+  m_drift_ctrl = new wxSpinCtrlDouble(this, wxID_ANY, wxEmptyString,
+                                       wxDefaultPosition, wxDefaultSize,
+                                       wxSP_ARROW_KEYS, 0.0, 20.0, 0.0, 0.1);
+  grid->Add(m_drift_ctrl, 0);
 
   grid->Add(new wxStaticText(this, wxID_ANY, _("Own ship (optional):")), 0,
             wxALIGN_CENTER_VERTICAL);
@@ -203,6 +220,14 @@ void CaseDialog::OnOK(wxCommandEvent& WXUNUSED(event)) {
   m_case.craft_type = m_craft_choice->GetStringSelection();
   m_case.pob = m_pob_ctrl->GetValue();
   m_case.grib_file_path = m_grib_path_ctrl->GetValue();
+
+  // A drift rate of 0 means "not provided" -- fall back to the GRIB file, or
+  // to no drift.
+  double drift_kt = m_drift_ctrl->GetValue();
+  m_case.has_manual_drift = drift_kt > 0.0;
+  m_case.manual_drift_kt = drift_kt;
+  m_case.manual_set_deg = m_set_ctrl->GetValue();
+
   m_case.FinalizeDatum();
 
   EndModal(wxID_OK);
