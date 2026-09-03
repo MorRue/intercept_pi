@@ -1,12 +1,17 @@
 # Leeway / drift model — NOT VERIFIED, do not deploy
 
-**Status: the datum-ageing drift model in `src/datum_age.cpp` was written
-autonomously. The method has now been checked against IAMSAR Manual Vol II & III
-(see below) and is structurally sound. The default leeway coefficient was
+**Status: the datum-ageing drift model in `src/datum_age.cpp` has been checked
+against the published SAR datum method and the Allen & Plourde leeway data
+(see Sources) and is structurally sound. The default leeway coefficient was
 `0.36` (5–13× too large); it is now `0.036`, pinned by
-`test/test_reference_iamsar.cpp`. A person with SAR domain knowledge should
+`test/test_reference_leeway.cpp`. A person with SAR domain knowledge should
 still confirm that value and the simplifications (two craft buckets, no
 divergence) before operational use.**
+
+This project is not affiliated with or endorsed by the IMO, ICAO, the USCG,
+or any search-and-rescue authority. The references below are cited as
+sources; consult the authoritative publications directly before any
+operational use.
 
 ## What the code does now (`src/datum_age.cpp`)
 
@@ -20,27 +25,26 @@ divergence) before operational use.**
 | integration | 30-min rhumb-line steps (`AdvancePosition`), `kMaxSteps = 2000` |
 | Earth radius | `kEarthRadiusNm = 3440.065` |
 
-## What IAMSAR says
+## How this compares to the published method
 
-### The method is correct
+### The method is standard
 
-IAMSAR Vol III §3 (printed p.3-16/17) and Vol II §4.4 / Appendix K:
+The SAR datum method (IAMSAR Manual Vol II §4.4 / App. K, Vol III §3):
 
 - drift = **vector sum of leeway + total water current** — matches `CombineVectors`.
 - drift distance = drift speed × time interval — matches the integration loop.
 - datum = reported position moved along the drift vector — matches `AdvancePosition`.
 - downwind direction = **average surface wind direction ± 180°** — matches
-  `wind FROM + 180°` (Vol II Leeway worksheet line 2, Wind current worksheet line 2).
+  `wind FROM + 180°`.
 
-So the structure of `ComputeAgedDatum` is the IAMSAR datum method. The problems
-are all in the leeway numbers.
+So the structure of `ComputeAgedDatum` is the standard datum method. The
+problems are all in the leeway numbers.
 
 ### Leeway is single-digit percent of wind speed (why `0.36` → `0.036`)
 
-IAMSAR Vol II **Figure N-2** ("Leeway of liferafts, survival craft and PIWs",
-*adapted directly from Allen & Plourde 1999, USCG CG-D-08-99* — the same
-reference the code comments cite) and Vol III's "Liferaft leeway" graph
-(p.3-18):
+Representative leeway figures from **Allen & Plourde 1999** (USCG CG-D-08-99,
+public domain — the primary experimental source; the IAMSAR Manual's leeway
+graphs are adapted from it):
 
 | craft / config | leeway ≈ % of wind | divergence angle | probable error |
 |---|---|---|---|
@@ -50,7 +54,7 @@ reference the code comments cite) and Vol III's "Liferaft leeway" graph
 | liferaft, deep ballast | ~3 % | ±15° | 0.2 kt |
 | liferaft, shallow ballast + drogue | ~2.5 % | ±20° | 0.1 kt |
 | PIW (person in water) | ~1 % or less | ±10–30° | 0.1–0.35 kt |
-| **medium displacement fishing vessel** (Vol II App. Q worked example: ASW 31.72 kt → leeway 1.3 kt) | **~4 %** (0.041) | **±50°** | 0.3 kt |
+| **medium displacement fishing vessel** (published worked example: ASW 31.72 kt → leeway 1.3 kt) | **~4 %** (0.041) | **±50°** | 0.3 kt |
 
 So:
 
@@ -83,20 +87,22 @@ cover the divergence area** — i.e. the datum is a best estimate, and the searc
 region must still contain the true position. This must not be forgotten when
 #3 is built.
 
-## Reference case for a regression test — IAMSAR Vol II, Appendix Q
+## Reference case for a regression test
 
-The manual's fully worked example ("F/V SAMPLE", Vol II Appendix Q). Use it to
-build an external-truth test (see `CLAUDE.md` → Next):
+A published SAR datum worked example ("F/V SAMPLE", a medium displacement
+fishing vessel; IAMSAR Manual Vol II Appendix Q). The figures below are
+reproduced as factual reference data to serve as an external-truth test
+oracle (see `test/test_reference_leeway.cpp`):
 
 ```
 Start (EIP):     37°10.0'N, 065°45.0'W  at 25 2145Z JAN 2000
 Commence search: 26 1630Z JAN 2000   (drift interval 18.75 h)
 Avg surface wind (ASW):   194°T, 31.72 kt      (direction FROM)
 Total water current (TWC): 057°T,  1.86 kt      (set = toward)
-Leeway speed:              1.3 kt               (fishing vessel, from fig N-3)
+Leeway speed:              1.3 kt               (fishing vessel)
 Leeway divergence angle:   ±50°                 → downwind 014°T, so 324°T / 064°T
 
-IAMSAR result:
+Published result:
   drift, left of downwind:  021°T, 2.21 kt → 41.49 NM → datum 37°48.7'N, 065°26.3'W
   drift, right of downwind: 060°T, 3.15 kt → 59.14 NM → datum 37°39.6'N, 064°40.5'W
   divergence distance (DD): 37.5 NM
