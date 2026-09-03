@@ -46,7 +46,7 @@ struct LeewayCoefficients {
 
 /**
  * Looks up leeway coefficients by craft_type, matched case-insensitively
- * against "rubber"/"wooden" so it survives CaseDialog's labels changing or
+ * against "rubber"/"wooden" so it survives the input labels changing or
  * (per CLAUDE.md, po/ being stale) an unmatched translation falling back
  * to English. A craft_type matching neither gets the rubber-hulled
  * (higher-leeway) coefficients -- the more cautious assumption for a
