@@ -146,3 +146,36 @@ jobs:
           path: build/*.tar.gz
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    name: Release
+    needs: [linux, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create / update the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          prerelease=()
+          [[ "$tag" == *-* ]] && prerelease=(--prerelease)
+          files=(artifacts/*/*.tar.gz)
+          notes="Automated build from \`$tag\`.
+
+          Changelog: https://github.com/${GITHUB_REPOSITORY}/blob/${tag}/Changelog.md
+
+          **Not verified for operational use** — see the README and
+          \`docs/LEEWAY_NEEDS_VERIFICATION.md\`."
+          gh release create "$tag" "${prerelease[@]}" --title "$tag" \
+            --notes "$notes" "${files[@]}" \
+          || gh release upload "$tag" "${files[@]}" --clobber
