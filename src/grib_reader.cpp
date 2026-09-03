@@ -24,9 +24,13 @@ double NormalizeDegrees(double deg) {
   return d;
 }
 
-// GRIB2 unsigned big-endian integer, nbytes in [1,4].
+// GRIB2 unsigned big-endian integer, nbytes in [1,4]. Every call site
+// length-checks its section first; this is belt-and-braces so a single
+// missed guard on a malformed or truncated file yields 0, not an
+// out-of-bounds read.
 uint32_t ReadU(const std::vector<unsigned char>& buf, size_t off,
                int nbytes) {
+  if (nbytes <= 0 || off + static_cast<size_t>(nbytes) > buf.size()) return 0;
   uint32_t v = 0;
   for (int i = 0; i < nbytes; ++i) v = (v << 8) | buf[off + i];
   return v;
