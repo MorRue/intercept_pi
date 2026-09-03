@@ -189,14 +189,16 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      `elapsed` if the datum was aged. A read-only panel on `CaseDialog` or a
      small results dialog. Handle "no own-ship fix" (show the datum, say the
      course is unavailable). The number formatting is pure — unit-test it.
-   - **(b) A course line to the datum via an OpenCPN route**, *not* a custom
-     overlay. Build a two-waypoint `PlugIn_Route` (own-ship snapshot → datum)
-     with `AddPlugInRoute`; give it a fixed GUID and delete/replace the
-     previous one on recompute so routes don't pile up. This is
-     geometrically trivial (OpenCPN owns the drawing) and the route is
-     *activatable* — the navigator can steer it. The lifecycle (one route,
-     replaced cleanly, removed on `DeInit`) is the part to get right; test
-     what you can (the waypoint list builder) and review the rest in OpenCPN.
+   - **(b) A datum mark on the chart** via `AddSingleWaypoint` (fixed GUID,
+     `DeleteSingleWaypoint` before re-add so marks don't pile up, removed on
+     `DeInit`). *Done in the v0.1 PR.* A `PlugIn_Route` (activatable course
+     *line*, own-ship → datum) was tried first but `Plugin_WaypointList`'s
+     node methods are `WX_DECLARE_LIST`'d in `ocpn_plugin.h` and **not**
+     exported by the api-18 `opencpn.lib` — `new Plugin_WaypointList` +
+     `Append` fails to link on MSVC (LNK2001 `wxPlugin_WaypointListNode::
+     DeleteData`). To use a route later, add `WX_DEFINE_LIST(Plugin_WaypointList);`
+     in one `.cpp`, or use the `*_Ex` route API. `route_helper.h`'s
+     `BuildInterceptWaypoints` is staged for that / for #4's overlay line.
    Do **not** build a `RenderOverlay` custom overlay yet — see #3.
    **This is the usable v0.1.**
 
