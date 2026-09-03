@@ -192,7 +192,11 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      **Own ship** position/speed fields (pre-filled from the live fix,
      editable, blank = use the fix) so you can plan from a hypothetical
      position or with no GPS. Position but no speed → bearing + distance,
-     no ETA. No position at all → datum only.
+     no ETA. No position at all → datum only. The case dialog also has
+     optional **Target drift set/rate** fields — hand-entered set & drift
+     wired to `ComputeAgedDatum`'s `ManualSetAndDrift` (used only when no
+     GRIB file is given); the results dialog shows which drift source was
+     applied.
    - **(b) On the chart** *(done in the v0.1 PR)*: a **datum mark** via
      `AddSingleWaypoint`, plus an activatable **"Course to steer" route**
      (own-ship → datum) via `AddPlugInRoute`. Both use fixed GUIDs and

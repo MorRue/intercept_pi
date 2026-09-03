@@ -48,6 +48,19 @@ InterceptResultsDialog::InterceptResultsDialog(wxWindow* parent,
                            Wx(FormatLatDDM(case_data.aged_lat)),
                            Wx(FormatLonDDM(case_data.aged_lon))));
 
+  // Which drift, if any, was applied to age the reported position.
+  if (case_data.has_manual_drift) {
+    AddRow(this, box,
+           wxString::Format(_("Target drift: %s deg, %.1f kt (entered)"),
+                             Wx(FormatBearingDeg(case_data.manual_set_deg)),
+                             case_data.manual_drift_kt));
+  } else if (!case_data.grib_file_path.IsEmpty()) {
+    AddRow(this, box, _("Target drift: from GRIB file"));
+  } else {
+    AddRow(this, box,
+           _("Target drift: none (datum = reported position)"));
+  }
+
   // FinalizeDatum() leaves elapsed at zero when there was no environmental
   // data to age the position with -- only show it when drift actually
   // happened.

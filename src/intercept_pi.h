@@ -33,6 +33,13 @@ struct Case {
   int pob = 0;  // Persons on board.
   wxString grib_file_path;  // Empty means no GRIB file was selected.
 
+  // Hand-entered drift of the target: the set (true direction it is moving
+  // TOWARD) and the rate (knots). Used by FinalizeDatum() only when no GRIB
+  // file is given -- with a GRIB, wind + current from the file win.
+  bool has_manual_drift = false;
+  double manual_set_deg = 0.0;
+  double manual_drift_kt = 0.0;
+
   // Set by FinalizeDatum(): the reported position aged forward to now.
   // Equal to (lat, lon) with a zero elapsed until FinalizeDatum() runs, and
   // still equal to it afterwards if there was no environmental data to
