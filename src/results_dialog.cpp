@@ -58,8 +58,11 @@ InterceptResultsDialog::InterceptResultsDialog(wxWindow* parent,
                              Wx(FormatEtaHhMm(elapsed_hours))));
   }
 
-  const bool have_course = own_fix_valid && own_sog_kt > 0.0;
-  if (have_course) {
+  // Bearing and distance need only the two positions; ETA additionally
+  // needs a speed. CourseToSteer() already returns eta absent when
+  // own_sog_kt <= 0, so a position with no speed still gives a useful
+  // course to steer.
+  if (own_fix_valid) {
     InterceptResult result = CourseToSteer(
         own_lat, own_lon, case_data.aged_lat, case_data.aged_lon, own_sog_kt);
     AddRow(this, box,
@@ -68,16 +71,17 @@ InterceptResultsDialog::InterceptResultsDialog(wxWindow* parent,
     AddRow(this, box,
            wxString::Format(_("Distance: %s NM"),
                              Wx(FormatDistanceNm(result.distance_nm))));
-    AddRow(this, box,
-           wxString::Format(_("ETA: %s"),
-                             Wx(result.eta.has_value()
-                                    ? FormatEtaHhMm(*result.eta)
-                                    : std::string("--:--"))));
+    if (result.eta.has_value()) {
+      AddRow(this, box,
+             wxString::Format(_("ETA: %s"), Wx(FormatEtaHhMm(*result.eta))));
+    } else {
+      AddRow(this, box, _("ETA: -- (own-ship speed not set)"));
+    }
   } else {
     auto* unavailable = AddRow(
         this, box,
-        _("Course to steer unavailable: no current own-ship position fix "
-          "and speed."));
+        _("Course to steer unavailable: no own-ship position (no GPS fix, "
+          "and none entered in the case dialog)."));
     unavailable->SetForegroundColour(*wxRED);
   }
 

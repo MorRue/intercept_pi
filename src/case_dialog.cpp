@@ -10,6 +10,9 @@
 #include <wx/wx.h>
 #endif
 #include <wx/filedlg.h>
+#include <wx/spinctrl.h>
+
+#include <cmath>
 
 #include "case_dialog.h"
 
@@ -54,17 +57,19 @@ bool SplitPosition(const wxString& text, wxString* lat_text,
 
 }  // namespace
 
-CaseDialog::CaseDialog(wxWindow* parent)
+CaseDialog::CaseDialog(wxWindow* parent, std::optional<OwnShipState> live_fix)
     : wxDialog(parent, wxID_ANY, _("New case"), wxDefaultPosition,
                wxDefaultSize, wxDEFAULT_DIALOG_STYLE),
       m_position_ctrl(nullptr),
       m_time_ctrl(nullptr),
       m_craft_choice(nullptr),
       m_pob_ctrl(nullptr),
-      m_grib_path_ctrl(nullptr) {
+      m_grib_path_ctrl(nullptr),
+      m_own_pos_ctrl(nullptr),
+      m_own_sog_ctrl(nullptr) {
   auto* main_sizer = new wxBoxSizer(wxVERTICAL);
 
-  auto* grid = new wxFlexGridSizer(5, 2, 8, 8);
+  auto* grid = new wxFlexGridSizer(0, 2, 8, 8);
   grid->AddGrowableCol(1);
 
   grid->Add(new wxStaticText(this, wxID_ANY, _("Position:")), 0,
@@ -102,6 +107,29 @@ CaseDialog::CaseDialog(wxWindow* parent)
   auto* grib_browse_button = new wxButton(this, wxID_ANY, _("Browse..."));
   grib_row->Add(grib_browse_button, 0, wxLEFT, 8);
   grid->Add(grib_row, 1, wxEXPAND);
+
+  grid->Add(new wxStaticText(this, wxID_ANY, _("Own ship (optional):")), 0,
+            wxALIGN_CENTER_VERTICAL);
+  m_own_pos_ctrl = new wxTextCtrl(this, wxID_ANY);
+  m_own_pos_ctrl->SetHint(_("position, blank = use GPS fix"));
+  grid->Add(m_own_pos_ctrl, 1, wxEXPAND);
+
+  grid->Add(new wxStaticText(this, wxID_ANY, _("Own ship speed (kt):")), 0,
+            wxALIGN_CENTER_VERTICAL);
+  m_own_sog_ctrl = new wxSpinCtrlDouble(this, wxID_ANY, wxEmptyString,
+                                         wxDefaultPosition, wxDefaultSize,
+                                         wxSP_ARROW_KEYS, 0.0, 99.0, 0.0, 0.1);
+  grid->Add(m_own_sog_ctrl, 0);
+
+  // Pre-fill from the live fix so the operator can tweak it rather than
+  // retype; leaving the position field blank falls back to the live fix.
+  if (live_fix) {
+    m_own_pos_ctrl->SetValue(wxString::Format(
+        "%.5f %c, %.5f %c", std::fabs(live_fix->lat),
+        live_fix->lat >= 0 ? 'N' : 'S', std::fabs(live_fix->lon),
+        live_fix->lon >= 0 ? 'E' : 'W'));
+    m_own_sog_ctrl->SetValue(live_fix->sog_kt);
+  }
 
   main_sizer->Add(grid, 1, wxEXPAND | wxALL, 10);
 
@@ -147,6 +175,26 @@ void CaseDialog::OnOK(wxCommandEvent& WXUNUSED(event)) {
   if (!lon.ok) {
     wxMessageBox(lon.error, _("Invalid position"), wxOK | wxICON_ERROR, this);
     return;
+  }
+
+  // Own-ship override: only when the position field has something in it.
+  // Same free-form parsing as the case position.
+  m_own_override.reset();
+  wxString own_text = m_own_pos_ctrl->GetValue();
+  own_text.Trim(true).Trim(false);
+  if (!own_text.IsEmpty()) {
+    wxString own_lat_text, own_lon_text;
+    PositionParseResult own_lat, own_lon;
+    if (!SplitPosition(own_text, &own_lat_text, &own_lon_text) ||
+        !(own_lat = ParseCoordinate(own_lat_text, true)).ok ||
+        !(own_lon = ParseCoordinate(own_lon_text, false)).ok) {
+      wxMessageBox(_("Own-ship position is not valid. Leave it blank to use "
+                     "the GPS fix, or enter e.g. '45 10 N, 015 05 E'."),
+                   _("Invalid own-ship position"), wxOK | wxICON_ERROR, this);
+      return;
+    }
+    m_own_override = OwnShipState{own_lat.degrees, own_lon.degrees,
+                                  m_own_sog_ctrl->GetValue()};
   }
 
   m_case.lat = lat.degrees;

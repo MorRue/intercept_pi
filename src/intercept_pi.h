@@ -50,6 +50,19 @@ struct Case {
   void FinalizeDatum();
 };
 
+/**
+ * Own-ship position and speed to compute the course to steer from. Normally
+ * this comes from OpenCPN's live fix (intercept_pi::SetPositionFix); the case
+ * dialog can also override it with hand-entered values, for planning from a
+ * hypothetical position or when there is no GPS. sog_kt <= 0 means the speed
+ * is unknown -- bearing and distance are still computable, ETA is not.
+ */
+struct OwnShipState {
+  double lat = 0.0;
+  double lon = 0.0;
+  double sog_kt = 0.0;
+};
+
 /** Outcome of parsing one coordinate (latitude or longitude) from text. */
 struct PositionParseResult {
   bool ok = false;

@@ -299,12 +299,22 @@ void intercept_pi::SetPositionFix(PlugIn_Position_Fix& pfix) {
 }
 
 void intercept_pi::OnToolbarToolCallback(int id) {
-  CaseDialog dlg(m_parent_window);
+  std::optional<OwnShipState> live_fix;
+  if (m_have_fix) live_fix = OwnShipState{m_own_lat, m_own_lon, m_own_sog};
+
+  CaseDialog dlg(m_parent_window, live_fix);
   if (dlg.ShowModal() == wxID_OK) {
     m_case = dlg.GetCase();
     UpdateDatumMark(*m_case);
-    InterceptResultsDialog results(m_parent_window, *m_case, m_have_fix,
-                                    m_own_lat, m_own_lon, m_own_sog);
+
+    // A hand-entered own-ship position (case dialog) overrides the live
+    // fix; otherwise fall back to whatever SetPositionFix() last gave us.
+    std::optional<OwnShipState> own = dlg.GetOwnShipOverride();
+    if (!own && m_have_fix) own = live_fix;
+
+    InterceptResultsDialog results(
+        m_parent_window, *m_case, own.has_value(),
+        own ? own->lat : 0.0, own ? own->lon : 0.0, own ? own->sog_kt : 0.0);
     results.ShowModal();
   }
 }

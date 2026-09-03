@@ -186,9 +186,13 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
 2. **Show the course to steer — v0.1** (GUI; small steps). Two parts:
    - **(a) Readout** — after the case dialog OKs, run `FinalizeDatum()` +
      `CourseToSteer()` and show datum lat/lon, bearing, distance, ETA, and
-     `elapsed` if the datum was aged. A read-only panel on `CaseDialog` or a
-     small results dialog. Handle "no own-ship fix" (show the datum, say the
-     course is unavailable). The number formatting is pure — unit-test it.
+     `elapsed` if the datum was aged. A read-only results dialog. Number
+     formatting is pure — unit-test it. Own-ship comes from OpenCPN's live
+     fix (`SetPositionFix`), but the case dialog also has optional
+     **Own ship** position/speed fields (pre-filled from the live fix,
+     editable, blank = use the fix) so you can plan from a hypothetical
+     position or with no GPS. Position but no speed → bearing + distance,
+     no ETA. No position at all → datum only.
    - **(b) A datum mark on the chart** via `AddSingleWaypoint` (fixed GUID,
      `DeleteSingleWaypoint` before re-add so marks don't pile up, removed on
      `DeInit`). *Done in the v0.1 PR.* A `PlugIn_Route` (activatable course
