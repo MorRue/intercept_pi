@@ -1,8 +1,8 @@
 /******************************************************************************
  * Intercept plugin for OpenCPN
  *
- * Computes a course to steer onto a reported position, for use when closing
- * a vessel in distress.
+ * Computes a course to steer onto a reported position, including the case
+ * where that position is itself drifting with wind and current.
  *
  * Copyright (C) 2026 momo
  * License: GPLv3+  (see COPYING)
@@ -18,20 +18,30 @@
 #include <wx/datetime.h>
 
 #include <optional>
+#include <vector>
 
 #include "ocpn_plugin.h"
+
+class InterceptPanel;
 
 /** Let OpenCPN choose where the toolbar button lands. */
 #define INTERCEPT_TOOL_POSITION -1
 
-/** A search-and-rescue case: the reported position and circumstances. */
+/** One tracking case: the reported position and its circumstances. */
 struct Case {
   double lat = 0.0;
   double lon = 0.0;
   wxDateTime time_of_report;
   wxString craft_type;
-  int pob = 0;  // Persons on board.
+  int pob = 0;  // People on board -- recorded only, not used in any calc.
   wxString grib_file_path;  // Empty means no GRIB file was selected.
+
+  // Hand-entered drift of the target: the set (true direction it is moving
+  // TOWARD) and the rate (knots). Used by FinalizeDatum() only when no GRIB
+  // file is given -- with a GRIB, wind + current from the file win.
+  bool has_manual_drift = false;
+  double manual_set_deg = 0.0;
+  double manual_drift_kt = 0.0;
 
   // Set by FinalizeDatum(): the reported position aged forward to now.
   // Equal to (lat, lon) with a zero elapsed until FinalizeDatum() runs, and
@@ -44,10 +54,22 @@ struct Case {
   /**
    * Ages (lat, lon) forward to now using GribReader on grib_file_path when
    * one is set, otherwise zero drift, and stores the result in aged_lat/
-   * aged_lon/elapsed. Call once the rest of the case is populated -- i.e.
-   * when the case is finalised, from CaseDialog::OnOK.
+   * aged_lon/elapsed. Call once the rest of the case is populated.
    */
   void FinalizeDatum();
+};
+
+/**
+ * Own-ship position and speed to compute the course to steer from. Normally
+ * this comes from OpenCPN's live fix (intercept_pi::SetPositionFix); the case
+ * dialog can also override it with hand-entered values, for planning from a
+ * hypothetical position or when there is no GPS. sog_kt <= 0 means the speed
+ * is unknown -- bearing and distance are still computable, ETA is not.
+ */
+struct OwnShipState {
+  double lat = 0.0;
+  double lon = 0.0;
+  double sog_kt = 0.0;
 };
 
 /** Outcome of parsing one coordinate (latitude or longitude) from text. */
@@ -64,6 +86,18 @@ struct PositionParseResult {
  * letters (N/S vs E/W) and the degree range (0-90 vs 0-180).
  */
 PositionParseResult ParseCoordinate(const wxString& text, bool is_latitude);
+
+/**
+ * Splits free-form position text into a latitude and a longitude part. A
+ * comma is the preferred separator ("45 30.5 N, 015 20.3 E"); without one,
+ * the split falls right after the first N/S hemisphere letter. Returns false
+ * if it cannot find two non-empty parts.
+ */
+bool SplitPosition(const wxString& text, wxString* lat_text,
+                   wxString* lon_text);
+
+/** The craft-type labels offered in the input panel, in menu order. */
+std::vector<wxString> CraftTypeLabels();
 
 class intercept_pi : public opencpn_plugin_118 {
 public:
@@ -88,7 +122,42 @@ public:
   void SetPositionFix(PlugIn_Position_Fix& pfix) override;
   void OnToolbarToolCallback(int id) override;
 
+  // --- Called by the InterceptPanel ---------------------------------------
+  /** OpenCPN's live own-ship fix, or nullopt until the first one arrives. */
+  std::optional<OwnShipState> LiveFix() const;
+  /** Store the case and (re)draw the chart objects. show_target toggles the
+   *  "Target" mark at the reported position; show_estimated toggles the
+   *  "Estimated position" mark at the drifted-forward datum; show_lines
+   *  toggles the drift track, the course-to-steer route and the "Intercept"
+   *  mark at the route's far end. */
+  void ApplyCase(const Case& c, const std::optional<OwnShipState>& own,
+                 bool show_target, bool show_estimated, bool show_lines);
+  /** The panel was closed by its own [x] -- clear the toolbar toggle. */
+  void OnPanelClosed();
+
 private:
+  /**
+   * (Re)places the chart objects for the current case, each on a fixed GUID
+   * (delete-before-add): "Target" mark at the reported position, "Estimated
+   * position" mark at the aged datum, "Target drift" track between them, and
+   * (if own-ship is known) the "Course to steer" route with an "Intercept"
+   * mark at its far end. Each show_* flag suppresses its object(s), deleting
+   * any stale copy.
+   */
+  void UpdateChartObjects(const Case& c,
+                          const std::optional<OwnShipState>& own,
+                          bool show_target, bool show_estimated,
+                          bool show_lines);
+
+  /**
+   * (Re)builds the two-point course-to-steer route (own-ship → datum) under
+   * kCourseRouteGuid, replacing any previous one. `own` is the effective
+   * own-ship position (live fix or the case dialog's manual override); with
+   * none, any stale route is removed and nothing is drawn.
+   */
+  void UpdateCourseRoute(const Case& c,
+                         const std::optional<OwnShipState>& own);
+
   wxWindow* m_parent_window;
   wxBitmap m_panel_bitmap;
   int m_leftclick_tool_id;
@@ -100,8 +169,12 @@ private:
   double m_own_cog;
   double m_own_sog;
 
-  /** The current case, if one has been entered via the case dialog. */
+  /** The current case, if one has been entered. */
   std::optional<Case> m_case;
+
+  /** The persistent, non-modal input/output panel. Created on first toolbar
+   *  click, hidden (not destroyed) on close, destroyed in DeInit(). */
+  InterceptPanel* m_panel = nullptr;
 };
 
 #endif  // INTERCEPT_PI_H__

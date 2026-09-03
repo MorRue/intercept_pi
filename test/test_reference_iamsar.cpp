@@ -217,7 +217,7 @@ int main() {
   // no specific "fishing vessel" bucket, so this exercises the default
   // (non-"wooden") one -- the same bucket test_datum_age.cpp's GRIB case
   // uses.
-  const wxString craft_type = "Rubber boat (inflatable, RIB, liferaft)";
+  const wxString craft_type = "Rubber boat (inflatable / RIB)";
   const LeewayCoefficients coeffs = LookupLeewayCoefficients(craft_type);
   const auto leeway_kt = [&](double wind_kt) {
     return coeffs.speed_pct_of_wind * wind_kt + coeffs.speed_constant_kt;
@@ -348,7 +348,7 @@ int main() {
 
       AgedDatum aged = ComputeAgedDatum(
           eip_lat, eip_lon, time_of_report, now,
-          "Rubber boat (inflatable, RIB, liferaft)", &grib,
+          "Rubber boat (inflatable / RIB)", &grib,
           ManualSetAndDrift());
 
       double distance_nm =

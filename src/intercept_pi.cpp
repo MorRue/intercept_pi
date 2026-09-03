@@ -10,20 +10,67 @@
 #include <wx/wx.h>
 #endif
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "case_dialog.h"
 #include "config.h"
 #include "datum_age.h"
 #include "grib_reader.h"
+#include "intercept_panel.h"
 #include "intercept_pi.h"
 #include "plug_utils.h"
+#include "route_helper.h"
+
+// ocpn_plugin.h WX_DECLARE_LIST's Plugin_WaypointList but does not define its
+// node methods; OpenCPN's own shared library provides them on Linux, but the
+// MSVC import lib (opencpn-libs/api-18/msvc-wx32/opencpn.lib) does not, so
+// `new Plugin_WaypointList` + Append fails to link (LNK2001
+// wxPlugin_WaypointListNode::DeleteData). Provide them locally on MSVC only.
+#if defined(_MSC_VER)
+#include <wx/listimpl.cpp>
+WX_DEFINE_LIST(Plugin_WaypointList)
+#endif
 
 namespace {
+
+// Fixed so every recompute replaces the same mark / route (delete-by-GUID,
+// then add) instead of piling a new one onto the chart each time a case is
+// confirmed. Arbitrary but stable -- not looked up against anything else.
+const wxString kEstimatedMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a001");
+const wxString kCourseRouteGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a002");
+const wxString kTargetMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a003");
+const wxString kDriftTrackGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a004");
+const wxString kInterceptMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a005");
+
+// Surface current + wind-driven leeway realistically stays well under this
+// even in a gale; a hand-typed drift_kt above it is a data-entry mistake
+// (e.g. a stray digit), not a real target drift.
+constexpr double kMaxPlausibleManualDriftKt = 20.0;
+
+/**
+ * Sanitises the operator's hand-entered set & drift before it reaches the
+ * datum-ageing integrator: a non-finite value (a stray NaN/Inf from a bad
+ * text-field parse) or a negative speed disables manual drift outright
+ * rather than feeding a bogus vector into ComputeAgedDatum, and an
+ * implausibly large speed is clamped down rather than dragging the datum
+ * far off-track.
+ */
+ManualSetAndDrift SanitizeManualDrift(bool has_manual_drift, double set_deg,
+                                      double drift_kt) {
+  ManualSetAndDrift manual;
+  if (!has_manual_drift) return manual;
+  if (!std::isfinite(drift_kt) || !std::isfinite(set_deg) || drift_kt < 0.0) {
+    return manual;  // available stays false: treat as not supplied.
+  }
+  manual.available = true;
+  manual.set_deg = set_deg;
+  manual.drift_kt = std::min(drift_kt, kMaxPlausibleManualDriftKt);
+  return manual;
+}
 
 /** Parses token as a number, requiring the whole token to be consumed. */
 bool ParseNumber(const std::string& token, double* out) {
@@ -185,17 +232,57 @@ PositionParseResult ParseCoordinate(const wxString& text, bool is_latitude) {
   return result;
 }
 
+bool SplitPosition(const wxString& text, wxString* lat_text,
+                   wxString* lon_text) {
+  wxString trimmed = text;
+  trimmed.Trim(true).Trim(false);
+
+  int comma = trimmed.Find(',');
+  if (comma != wxNOT_FOUND) {
+    *lat_text = trimmed.Mid(0, comma);
+    *lon_text = trimmed.Mid(comma + 1);
+  } else {
+    size_t split_at = wxString::npos;
+    for (size_t i = 0; i < trimmed.Length(); ++i) {
+      wxChar c = wxToupper(trimmed[i]);
+      if (c == 'N' || c == 'S') {
+        split_at = i + 1;
+        break;
+      }
+    }
+    if (split_at == wxString::npos) return false;
+    *lat_text = trimmed.Mid(0, split_at);
+    *lon_text = trimmed.Mid(split_at);
+  }
+  lat_text->Trim(true).Trim(false);
+  lon_text->Trim(true).Trim(false);
+  return !lat_text->IsEmpty() && !lon_text->IsEmpty();
+}
+
+std::vector<wxString> CraftTypeLabels() {
+  // "Unknown" is the default; LookupLeewayCoefficients() matches only
+  // "wooden" and falls everything else through to the rubber-hull
+  // coefficient, so an unknown craft gets that (the more cautious one).
+  return {_("Unknown / not specified"),
+          _("Rubber boat (inflatable / RIB)"),
+          _("Wooden boat (displacement hull)")};
+}
+
 void Case::FinalizeDatum() {
   std::unique_ptr<GribReader> grib;
   if (!grib_file_path.IsEmpty()) {
     grib = std::make_unique<GribReader>(wxFileName(grib_file_path));
   }
 
-  // No case-dialog field for a manual set & drift yet -- ComputeAgedDatum()
-  // falls back to zero drift when grib_file_path was left empty.
+  // Hand-entered set & drift, used by ComputeAgedDatum() only when there is
+  // no GRIB file. With neither, drift is zero and the datum is the reported
+  // position.
+  ManualSetAndDrift manual =
+      SanitizeManualDrift(has_manual_drift, manual_set_deg, manual_drift_kt);
+
   AgedDatum aged =
       ComputeAgedDatum(lat, lon, time_of_report, wxDateTime::Now(),
-                        craft_type, grib.get(), ManualSetAndDrift());
+                        craft_type, grib.get(), manual);
   aged_lat = aged.lat;
   aged_lon = aged.lon;
   elapsed = aged.elapsed;
@@ -259,6 +346,16 @@ int intercept_pi::Init() {
 
 bool intercept_pi::DeInit() {
   if (m_leftclick_tool_id != -1) RemovePlugInTool(m_leftclick_tool_id);
+  if (m_panel) {
+    m_panel->Destroy();
+    m_panel = nullptr;
+  }
+  wxString g;
+  g = kEstimatedMarkGuid; DeleteSingleWaypoint(g);
+  g = kTargetMarkGuid;    DeleteSingleWaypoint(g);
+  g = kInterceptMarkGuid; DeleteSingleWaypoint(g);
+  g = kDriftTrackGuid;    DeletePlugInTrack(g);
+  g = kCourseRouteGuid;   DeletePlugInRoute(g);
   return true;
 }
 
@@ -290,7 +387,123 @@ void intercept_pi::SetPositionFix(PlugIn_Position_Fix& pfix) {
   m_have_fix = true;
 }
 
-void intercept_pi::OnToolbarToolCallback(int id) {
-  CaseDialog dlg(m_parent_window);
-  if (dlg.ShowModal() == wxID_OK) m_case = dlg.GetCase();
+void intercept_pi::OnToolbarToolCallback(int WXUNUSED(id)) {
+  if (!m_panel) m_panel = new InterceptPanel(m_parent_window, this);
+
+  const bool show = !m_panel->IsShown();
+  m_panel->Show(show);
+  if (show) m_panel->Raise();
+  if (m_leftclick_tool_id != -1)
+    SetToolbarItemState(m_leftclick_tool_id, show);
+}
+
+std::optional<OwnShipState> intercept_pi::LiveFix() const {
+  if (!m_have_fix) return std::nullopt;
+  return OwnShipState{m_own_lat, m_own_lon, m_own_sog};
+}
+
+void intercept_pi::ApplyCase(const Case& c,
+                             const std::optional<OwnShipState>& own,
+                             bool show_target, bool show_estimated,
+                             bool show_lines) {
+  m_case = c;
+  UpdateChartObjects(c, own, show_target, show_estimated, show_lines);
+  RequestRefresh(m_parent_window);
+}
+
+void intercept_pi::UpdateChartObjects(const Case& c,
+                                      const std::optional<OwnShipState>& own,
+                                      bool show_target, bool show_estimated,
+                                      bool show_lines) {
+  // Five objects, all delete-before-add on fixed GUIDs so a recalculation
+  // replaces rather than piles up:
+  //   * "Target" mark  -- the reported position (show_target)
+  //   * "Estimated position" mark -- the aged datum, where the target is now
+  //     (show_estimated)
+  //   * "Intercept" mark -- where own-ship's course meets the target; drawn
+  //     with the routes (show_lines). In the v0.1 model this coincides with
+  //     the estimated position; a moving-target solution will separate them.
+  //   * "Target drift" track -- reported position to datum (show_lines)
+  //   * "Course to steer" route -- own-ship to the intercept (show_lines)
+  // Route and track render in different colours (OpenCPN's route vs track
+  // styles), so the two lines are visually distinct.
+  wxString g;
+
+  g = kTargetMarkGuid;
+  DeleteSingleWaypoint(g);
+  if (show_target) {
+    PlugIn_Waypoint target(c.lat, c.lon, wxT("activepoint"), _("Target"),
+                           kTargetMarkGuid);
+    AddSingleWaypoint(&target, /*b_permanent=*/true);
+  }
+
+  g = kEstimatedMarkGuid;
+  DeleteSingleWaypoint(g);
+  if (show_estimated) {
+    PlugIn_Waypoint estimated(c.aged_lat, c.aged_lon, wxT("circle"),
+                              _("Estimated position"), kEstimatedMarkGuid);
+    AddSingleWaypoint(&estimated, /*b_permanent=*/true);
+  }
+
+  g = kDriftTrackGuid;
+  DeletePlugInTrack(g);
+  const bool drifted =
+      std::fabs(c.aged_lat - c.lat) > 1e-7 || std::fabs(c.aged_lon - c.lon) > 1e-7;
+  if (show_lines && drifted) {
+    auto* track = new PlugIn_Track();
+    track->m_NameString = _("Target drift");
+    track->m_GUID = kDriftTrackGuid;
+    track->pWaypointList = new Plugin_WaypointList();
+    track->pWaypointList->Append(
+        new PlugIn_Waypoint(c.lat, c.lon, wxT("circle"), _("Reported")));
+    track->pWaypointList->Append(new PlugIn_Waypoint(
+        c.aged_lat, c.aged_lon, wxT("circle"), _("Estimated position")));
+    AddPlugInTrack(track, /*b_permanent=*/true);
+  }
+
+  // Passing nullopt makes UpdateCourseRoute tear down both the route and the
+  // intercept mark, so "Show routes" off removes them.
+  UpdateCourseRoute(c, show_lines ? own : std::nullopt);
+}
+
+void intercept_pi::OnPanelClosed() {
+  if (m_leftclick_tool_id != -1)
+    SetToolbarItemState(m_leftclick_tool_id, false);
+}
+
+void intercept_pi::UpdateCourseRoute(const Case& c,
+                                     const std::optional<OwnShipState>& own) {
+  wxString guid = kCourseRouteGuid;
+  DeletePlugInRoute(guid);
+  wxString mark = kInterceptMarkGuid;
+  DeleteSingleWaypoint(mark);
+
+  // No own-ship position means there is no course line to draw -- the marks
+  // still show target and estimated position, and the panel still gives
+  // bearing/distance if a position was entered in the panel.
+  if (!own) return;
+
+  std::vector<GeoPoint> points =
+      BuildInterceptWaypoints(own->lat, own->lon, c.aged_lat, c.aged_lon);
+
+  auto* route = new PlugIn_Route();
+  route->m_NameString = _("Course to steer");
+  route->m_StartString = _("Own ship");
+  route->m_EndString = _("Intercept");
+  route->m_GUID = kCourseRouteGuid;
+  route->pWaypointList = new Plugin_WaypointList();
+  route->pWaypointList->Append(new PlugIn_Waypoint(
+      points[0].lat, points[0].lon, wxT("circle"), _("Own ship")));
+  route->pWaypointList->Append(new PlugIn_Waypoint(
+      points[1].lat, points[1].lon, wxT("circle"), _("Intercept")));
+
+  // Ordinary activatable route, so the navigator can select and steer it.
+  AddPlugInRoute(route, /*b_permanent=*/true);
+
+  // The intercept: the far end of the course line. A "diamond" icon keeps it
+  // distinct from the "circle" estimated-position mark it sits on top of
+  // until a moving-target solution moves it downrange.
+  PlugIn_Waypoint intercept(points[1].lat, points[1].lon, wxT("diamond"),
+                            _("Intercept"), kInterceptMarkGuid);
+  AddSingleWaypoint(&intercept, /*b_permanent=*/true);
 }

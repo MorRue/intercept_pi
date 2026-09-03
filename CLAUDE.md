@@ -41,16 +41,16 @@ symbols — like a `ServiceLoader` entry point.
 
 ## State
 
-Working skeleton, confirmed loading in OpenCPN 5.8.4 on Linux — it appears
-in Options > Plugins and its toolbar button renders. It subscribes to
-`WANTS_NMEA_EVENTS` for own-ship position and displays that position on
-click. This is a placeholder that proves the toolbar wiring and the position
-feed — the two things every later feature depends on.
+Loads in OpenCPN 5.8.4. The toolbar button toggles `InterceptPanel` — a
+non-modal window carrying the case inputs and the computed course to steer;
+[Recalculate] ages the datum, computes bearing/distance/ETA, and draws a
+"Datum" mark plus an activatable "Course to steer" route on the chart.
 
-`src/` is `intercept_pi.{h,cpp}`, `case_dialog.{h,cpp}` (the case-intake
-dialog, merged), and the `plug_utils` icon helpers. ShipDriver's AIS maker,
-GRIB record classes and simulator GUI were deleted; the GRIB classes come
-back with the drift work (see "Next").
+`src/`: `intercept_pi.{h,cpp}` (plugin entry points, `Case`, coordinate
+parsing), `intercept_panel.{h,cpp}` (the UI), `datum_age.{h,cpp}` +
+`grib_reader.{h,cpp}` (datum ageing), `intercept.{h,cpp}` (course to steer),
+`format.{h,cpp}` (output formatting), `route_helper.{h,cpp}`, `portability.h`,
+`plug_utils` (icons). ShipDriver's AIS maker and simulator GUI were deleted.
 
 ## Planned direction (IAMSAR Vol. III mechanics)
 
@@ -184,19 +184,64 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    ETA case. Keep the API additive.
 
 2. **Show the course to steer — v0.1** (GUI; small steps). Two parts:
-   - **(a) Readout** — after the case dialog OKs, run `FinalizeDatum()` +
-     `CourseToSteer()` and show datum lat/lon, bearing, distance, ETA, and
-     `elapsed` if the datum was aged. A read-only panel on `CaseDialog` or a
-     small results dialog. Handle "no own-ship fix" (show the datum, say the
-     course is unavailable). The number formatting is pure — unit-test it.
-   - **(b) A course line to the datum via an OpenCPN route**, *not* a custom
-     overlay. Build a two-waypoint `PlugIn_Route` (own-ship snapshot → datum)
-     with `AddPlugInRoute`; give it a fixed GUID and delete/replace the
-     previous one on recompute so routes don't pile up. This is
-     geometrically trivial (OpenCPN owns the drawing) and the route is
-     *activatable* — the navigator can steer it. The lifecycle (one route,
-     replaced cleanly, removed on `DeInit`) is the part to get right; test
-     what you can (the waypoint list builder) and review the rest in OpenCPN.
+   - **(a) The panel** (`src/intercept_panel.{h,cpp}`, `InterceptPanel`) — a
+     **non-modal `wxFrame`** (float-on-parent, tool window) toggled by the
+     toolbar button. OpenCPN stays fully interactive while it's open; the
+     `[x]` hides it (state kept), `DeInit` destroys it. Inputs are in
+     **`wxStaticBoxSizer` group boxes** (titles set a notch smaller via
+     `GetFont().Smaller()`, applied after every box + child exists so only
+     the labels shrink), top to bottom: **Own ship** (position, speed),
+     **Report** (reported position, time of report), **Target drift** — one
+     box with two italic sub-headers, "Explicit drift (ignored when a GRIB
+     file is set)" (set, rate → `ComputeAgedDatum`'s `ManualSetAndDrift`)
+     and "Environment drift (from a GRIB file…)" (GRIB row **Browse…** /
+     **Clear**, craft type default "Unknown", optional POB). Position/time/
+     own-ship fields **each have a "lock" checkbox to their right** — checked
+     ⇒ field disabled; own-ship pos/speed start locked (live `SetPositionFix`
+     used), report fields start unlocked. `UpdateGribLock()`: while a GRIB
+     path is set the two explicit-drift fields are disabled (file
+     wind+current win).
+     Then a **"Result" box** — datum, drift source, "target moved from
+     report", elapsed, bearing, distance, and an ETA row that also carries
+     the **[Recalculate]** button (bottom-right, same row, no row of its
+     own). Below the box, three **display checkboxes** ("Show reported
+     position", "Show estimated position", "Show routes", all on) hide/show
+     chart objects. Every input control (and the lock checkboxes, Browse and
+     Recalculate) carries a `SetToolTip()`; text position fields also use
+     `SetHint()` placeholders.
+     **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
+     the output rows in place, and calls
+     `intercept_pi::ApplyCase(c, own, show_target, show_estimated, show_lines)`
+     to refresh the chart; toggling a display checkbox re-applies the stored
+     last case. Position but no speed → bearing + distance, no ETA;
+     no position at all → datum only. Number formatting is pure
+     (`format.{h,cpp}`) and unit-tested.
+   - **(b) On the chart** *(done in the v0.1 PR)*, all on fixed GUIDs,
+     delete-before-add, removed on `DeInit`:
+     - **"Target" mark** at the reported position (left where reported;
+       toggle "Show reported position");
+     - **"Estimated position" mark** (circle) at the aged datum, where the
+       target is estimated to be now (toggle "Show estimated position");
+     - **"Intercept" mark** (diamond) at the far end of the course line —
+       where own-ship's course meets the target. Visibility tied to "Show
+       routes". In the v0.1 model it coincides with the estimated position; a
+       moving-target solution (#5) will move it downrange;
+     - **"Target drift" track** (`AddPlugInTrack`) reported → datum;
+     - **"Course to steer" route** (`AddPlugInRoute`, activatable) own-ship
+       → intercept.
+     The track, route and intercept mark (everything under "routes") are
+     suppressed together when "Show routes" is off — `UpdateChartObjects`
+     calls `UpdateCourseRoute(c, show_lines ? own : nullopt)` and the nullopt
+     path tears down both the route and the mark. GUIDs …a001 estimated,
+     …a002 route, …a003 target, …a004 drift track, …a005 intercept.
+     Route and track render in OpenCPN's different route/track styles, which
+     is how the two lines come out visually distinct without a custom
+     overlay. **MSVC gotcha:** `Plugin_WaypointList`'s node methods are
+     `WX_DECLARE_LIST`'d in `ocpn_plugin.h` but the api-18 `opencpn.lib`
+     doesn't export them (LNK2001 `wxPlugin_WaypointListNode::DeleteData`) —
+     `intercept_pi.cpp` provides them locally under `#if defined(_MSC_VER)`
+     with `WX_DEFINE_LIST`; Linux gets them from OpenCPN's shared lib so the
+     guard must stay MSVC-only or Linux gets a duplicate-symbol error.
    Do **not** build a `RenderOverlay` custom overlay yet — see #3.
    **This is the usable v0.1.**
 
