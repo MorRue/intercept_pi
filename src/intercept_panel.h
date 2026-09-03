@@ -85,6 +85,7 @@ private:
   wxStaticText* m_out_drift;
   wxStaticText* m_out_moved;
   wxStaticText* m_out_elapsed;
+  wxStaticText* m_out_intercept;
   wxStaticText* m_out_bearing;
   wxStaticText* m_out_distance;
   wxStaticText* m_out_eta;

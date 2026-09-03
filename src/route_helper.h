@@ -19,9 +19,9 @@ struct GeoPoint {
   double lon = 0.0;
 };
 
-// Builds the two-point course line for the static intercept (Planned
-// direction #4): own-ship's current position, then the datum. Always
-// returns exactly two points, in that order.
+// Builds the two-point course line: own-ship's current position, then the
+// point to steer at (the moving-target intercept, or the present datum when
+// that didn't solve). Always returns exactly two points, in that order.
 std::vector<GeoPoint> BuildInterceptWaypoints(double own_lat, double own_lon,
                                                double datum_lat,
                                                double datum_lon);

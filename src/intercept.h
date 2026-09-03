@@ -24,13 +24,13 @@ struct InterceptResult {
 };
 
 /**
- * Great-circle initial bearing and distance from own-ship to a target
- * position -- the static form of intercept (Planned direction #4 in
- * CLAUDE.md): no lead angle, so this is the course to steer only when the
- * target is not expected to move further (e.g. target = Case::aged_lat/lon
- * with no drift data, or a short transit). Bearing is via the atan2
- * two-argument formula; distance is haversine, both on a spherical-earth
- * approximation, in nautical miles.
+ * Great-circle initial bearing and distance from own-ship to a fixed
+ * target position -- the static, no-lead form. Correct as the course to
+ * steer only when the target is not moving further; SolveMovingIntercept()
+ * (intercept_solve.h) builds the moving-target lead on top of it by calling
+ * this once per iteration against the target's extrapolated position.
+ * Bearing is via the atan2 two-argument formula; distance is haversine,
+ * both on a spherical-earth approximation, in nautical miles.
  */
 InterceptResult CourseToSteer(double own_lat, double own_lon,
                                double target_lat, double target_lon,
