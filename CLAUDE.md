@@ -205,8 +205,11 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      user tries to collapse it with a file loaded. `RelayoutForPane()`
      (`Layout()`+`Fit()`) re-flows the frame on collapse/expand.
      Plus three **display checkboxes** ("Show reported position", "Show
-     estimated position", "Show routes", all on) that hide/show chart objects
-     — and the **outputs** — datum,
+     estimated position", "Show routes", all on) that hide/show chart objects.
+     Every input control (and the lock checkboxes, Browse and Recalculate)
+     carries a `SetToolTip()` explanation; text position fields also use
+     `SetHint()` placeholders.
+     Then the **outputs** — datum,
      drift source, "target moved from report", elapsed, bearing/distance/ETA.
      **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
      the output rows in place, and calls
