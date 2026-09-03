@@ -12,6 +12,7 @@
 #ifndef WX_PRECOMP
 #include <wx/wx.h>
 #endif
+#include <wx/datectrl.h>
 #include <wx/spinctrl.h>
 #include <wx/timectrl.h>
 
@@ -43,6 +44,7 @@ private:
   wxPanel* m_content;
 
   wxTextCtrl* m_position_ctrl;
+  wxDatePickerCtrl* m_date_ctrl;
   wxTimePickerCtrl* m_time_ctrl;
   wxChoice* m_craft_choice;
   wxSpinCtrl* m_pob_ctrl;
@@ -54,6 +56,7 @@ private:
 
   wxStaticText* m_out_datum;
   wxStaticText* m_out_drift;
+  wxStaticText* m_out_moved;
   wxStaticText* m_out_elapsed;
   wxStaticText* m_out_bearing;
   wxStaticText* m_out_distance;
