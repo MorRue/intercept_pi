@@ -22,6 +22,7 @@
 #include "grib_reader.h"
 #include "intercept_panel.h"
 #include "intercept_pi.h"
+#include "intercept_solve.h"
 #include "plug_utils.h"
 #include "route_helper.h"
 
@@ -288,6 +289,41 @@ void Case::FinalizeDatum() {
   elapsed = aged.elapsed;
 }
 
+void Case::SolveIntercept(const OwnShipState& own) {
+  intercept_solved = false;
+  if (!(own.sog_kt > 0.0)) return;
+
+  // One GRIB reader, reused across every iteration of the solve.
+  std::unique_ptr<GribReader> grib;
+  if (!grib_file_path.IsEmpty()) {
+    grib = std::make_unique<GribReader>(wxFileName(grib_file_path));
+  }
+  const ManualSetAndDrift manual =
+      SanitizeManualDrift(has_manual_drift, manual_set_deg, manual_drift_kt);
+  const wxDateTime now = wxDateTime::Now();
+
+  // The target's estimated position `hours` from now: age the reported
+  // position forward past "now" using the same drift model as FinalizeDatum.
+  auto target_at = [&](double hours) -> GeoPoint {
+    const long secs = static_cast<long>(hours * 3600.0 + 0.5);
+    AgedDatum d = ComputeAgedDatum(lat, lon, time_of_report,
+                                   now + wxTimeSpan::Seconds(secs), craft_type,
+                                   grib.get(), manual);
+    return GeoPoint{d.lat, d.lon};
+  };
+
+  const MovingInterceptResult r =
+      SolveMovingIntercept(own.lat, own.lon, own.sog_kt, target_at);
+  if (!r.converged) return;
+
+  intercept_solved = true;
+  intercept_lat = r.lat;
+  intercept_lon = r.lon;
+  intercept_bearing_deg = r.bearing_deg;
+  intercept_distance_nm = r.distance_nm;
+  intercept_eta_hours = r.time_hours;
+}
+
 /*
  * OpenCPN dlopen()s the shared library and looks up these two C symbols.
  * They are the only exported entry points; everything else is reached
@@ -483,8 +519,13 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   // bearing/distance if a position was entered in the panel.
   if (!own) return;
 
+  // Steer at the moving-target intercept when it solved; otherwise (speed
+  // unknown, or the target outpaces own-ship) at the present estimated
+  // position.
+  const double tgt_lat = c.intercept_solved ? c.intercept_lat : c.aged_lat;
+  const double tgt_lon = c.intercept_solved ? c.intercept_lon : c.aged_lon;
   std::vector<GeoPoint> points =
-      BuildInterceptWaypoints(own->lat, own->lon, c.aged_lat, c.aged_lon);
+      BuildInterceptWaypoints(own->lat, own->lon, tgt_lat, tgt_lon);
 
   auto* route = new PlugIn_Route();
   route->m_NameString = _("Course to steer");
@@ -500,9 +541,10 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   // Ordinary activatable route, so the navigator can select and steer it.
   AddPlugInRoute(route, /*b_permanent=*/true);
 
-  // The intercept: the far end of the course line. A "diamond" icon keeps it
-  // distinct from the "circle" estimated-position mark it sits on top of
-  // until a moving-target solution moves it downrange.
+  // The intercept: the far end of the course line -- the moving-target
+  // meeting point when it solved, else the present estimated position. A
+  // "diamond" icon keeps it distinct from the "circle" estimated-position
+  // mark when the two coincide.
   PlugIn_Waypoint intercept(points[1].lat, points[1].lon, wxT("diamond"),
                             _("Intercept"), kInterceptMarkGuid);
   AddSingleWaypoint(&intercept, /*b_permanent=*/true);
