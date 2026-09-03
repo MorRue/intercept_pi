@@ -23,10 +23,12 @@ OpenCPN project, or any search-and-rescue authority.
 
 ## Status
 
-Version 0.1: a working plugin with a non-modal input/output panel, datum
-ageing (GRIB or manual drift), a moving-target intercept solve, and chart
-marks and a course-to-steer route. Not yet released through the OpenCPN
-plugin catalogue.
+**v0.1.0-alpha** — a working plugin with a non-modal input/output panel,
+datum ageing (GRIB or manual drift), a moving-target intercept solve, and
+chart marks and a course-to-steer route. Alpha: the drift model is
+unreviewed and the Windows build has not been run inside a real OpenCPN
+yet. Not in the OpenCPN plugin catalogue; install the tarball from the
+[releases page](https://github.com/MorRue/intercept_pi/releases).
 
 ## Building
 

@@ -5,9 +5,10 @@ All notable changes to the Intercept plugin. This project follows
 
 ## [Unreleased]
 
-## [0.1.0] — not yet released
+## [0.1.0-alpha] — 2026-09-04
 
-First working version.
+First public build. Alpha: functional, but the drift model is unreviewed
+and the Windows build has not been run inside a real OpenCPN yet.
 
 ### Added
 - Non-modal input/output panel (`InterceptPanel`) toggled from the toolbar;
@@ -32,6 +33,9 @@ First working version.
 ### Notes
 - The drift model is **not verified for operational use** — see
   `docs/LEEWAY_NEEDS_VERIFICATION.md`.
+- The Windows build passes CI but has not yet been loaded into a real
+  OpenCPN; the `WX_DEFINE_LIST` workaround for the plugin API's route list
+  is compile-tested only.
 
-[Unreleased]: https://github.com/MorRue/intercept_pi/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/MorRue/intercept_pi/releases/tag/v0.1.0
+[Unreleased]: https://github.com/MorRue/intercept_pi/compare/v0.1.0-alpha...HEAD
+[0.1.0-alpha]: https://github.com/MorRue/intercept_pi/releases/tag/v0.1.0-alpha
