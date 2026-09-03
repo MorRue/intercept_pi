@@ -95,6 +95,15 @@ if (wxWidgets_FOUND)
   target_include_directories(test_intercept PRIVATE src)
   add_test(NAME intercept_test COMMAND test_intercept)
 
+  # -------- Standalone moving-target intercept-solve test --------
+  #
+  # SolveMovingIntercept() takes a target-trajectory callback and leans on
+  # CourseToSteer(); still no wxWidgets dependency.
+  add_executable(test_intercept_solve test/test_intercept_solve.cpp
+                 src/intercept_solve.cpp src/intercept.cpp)
+  target_include_directories(test_intercept_solve PRIVATE src)
+  add_test(NAME intercept_solve_test COMMAND test_intercept_solve)
+
   # -------- Standalone formatter test --------
   #
   # Same rationale as test_intercept above: format.h is plain C++ over
