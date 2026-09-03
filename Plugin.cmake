@@ -38,7 +38,7 @@ set(OCPN_RELEASE_REPO
 #
 set(PKG_NAME intercept_pi)
 set(PKG_VERSION 0.1.0) # Major.Minor.Patch
-set(PKG_PRERELEASE "")  # Empty, or a tag like 'beta'
+set(PKG_PRERELEASE "alpha")  # Empty, or a tag like 'alpha' / 'beta'
 
 set(DISPLAY_NAME Intercept)    # Dialogs, installer artifacts, ...
 set(PLUGIN_API_NAME Intercept) # As of GetCommonName() in plugin API
@@ -51,7 +51,7 @@ rate, and the plugin gives the bearing, distance and estimated time of
 arrival from own ship, and draws the course on the chart.
 ]=])
 
-set(PKG_AUTHOR "momo")
+set(PKG_AUTHOR "MorRue")
 set(PKG_IS_OPEN_SOURCE "yes")
 set(PKG_HOMEPAGE https://github.com/MorRue/intercept_pi)
 set(PKG_INFO_URL https://github.com/MorRue/intercept_pi)
