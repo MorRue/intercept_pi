@@ -9,8 +9,11 @@
 #ifndef WX_PRECOMP
 #include <wx/wx.h>
 #endif
+#include <wx/checkbox.h>
 #include <wx/filedlg.h>
 #include <wx/statline.h>
+
+#include <cmath>
 
 #include "intercept_panel.h"
 
@@ -69,13 +72,28 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   auto* in = new wxFlexGridSizer(0, 2, 6, 8);
   in->AddGrowableCol(1);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("Reported position:")), 0,
+  // Left cell: an optional lock/enable checkbox, then the label.
+  auto label_with_check = [&](wxCheckBox* cb, const wxString& text) {
+    auto* s = new wxBoxSizer(wxHORIZONTAL);
+    s->Add(cb, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+    s->Add(new wxStaticText(panel, wxID_ANY, text), 0, wxALIGN_CENTER_VERTICAL);
+    return s;
+  };
+  auto plain = [&](const wxString& text) {
+    return new wxStaticText(panel, wxID_ANY, text);
+  };
+
+  m_lock_position = new wxCheckBox(panel, wxID_ANY, wxEmptyString);
+  m_lock_position->SetToolTip(_("Lock so it can't be changed by accident"));
+  in->Add(label_with_check(m_lock_position, _("Reported position:")), 0,
           wxALIGN_CENTER_VERTICAL);
   m_position_ctrl = new wxTextCtrl(panel, wxID_ANY);
   m_position_ctrl->SetHint(_("e.g. 45 30.5 N, 015 20.3 E"));
   in->Add(m_position_ctrl, 1, wxEXPAND);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("Time of report (local):")), 0,
+  m_lock_time = new wxCheckBox(panel, wxID_ANY, wxEmptyString);
+  m_lock_time->SetToolTip(_("Lock so it can't be changed by accident"));
+  in->Add(label_with_check(m_lock_time, _("Time of report (local):")), 0,
           wxALIGN_CENTER_VERTICAL);
   auto* when_row = new wxBoxSizer(wxHORIZONTAL);
   m_date_ctrl = new wxDatePickerCtrl(panel, wxID_ANY, wxDateTime::Now());
@@ -84,21 +102,18 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   when_row->Add(m_time_ctrl, 0, wxLEFT, 6);
   in->Add(when_row, 0);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("Craft type:")), 0,
-          wxALIGN_CENTER_VERTICAL);
+  in->Add(plain(_("Craft type:")), 0, wxALIGN_CENTER_VERTICAL);
   m_craft_choice = new wxChoice(panel, wxID_ANY);
   for (const auto& label : CraftTypeLabels()) m_craft_choice->Append(label);
-  m_craft_choice->SetSelection(0);
+  m_craft_choice->SetSelection(0);  // "Unknown / not specified"
   in->Add(m_craft_choice, 1, wxEXPAND);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("Persons on board:")), 0,
-          wxALIGN_CENTER_VERTICAL);
-  m_pob_ctrl = new wxSpinCtrl(panel, wxID_ANY, "1", wxDefaultPosition,
-                              wxDefaultSize, wxSP_ARROW_KEYS, 0, 999, 1);
+  in->Add(plain(_("Persons on board (optional):")), 0, wxALIGN_CENTER_VERTICAL);
+  m_pob_ctrl = new wxSpinCtrl(panel, wxID_ANY, "0", wxDefaultPosition,
+                              wxDefaultSize, wxSP_ARROW_KEYS, 0, 999, 0);
   in->Add(m_pob_ctrl, 0);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("GRIB file (optional):")), 0,
-          wxALIGN_CENTER_VERTICAL);
+  in->Add(plain(_("GRIB file (optional):")), 0, wxALIGN_CENTER_VERTICAL);
   auto* grib_row = new wxBoxSizer(wxHORIZONTAL);
   m_grib_path_ctrl = new wxTextCtrl(panel, wxID_ANY, wxEmptyString,
                                     wxDefaultPosition, wxDefaultSize,
@@ -108,32 +123,35 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   grib_row->Add(browse, 0, wxLEFT, 6);
   in->Add(grib_row, 1, wxEXPAND);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("Target drift set (deg true):")),
-          0, wxALIGN_CENTER_VERTICAL);
+  in->Add(plain(_("Target drift set (deg true):")), 0,
+          wxALIGN_CENTER_VERTICAL);
   m_set_ctrl = new wxSpinCtrlDouble(panel, wxID_ANY, wxEmptyString,
                                     wxDefaultPosition, wxDefaultSize,
                                     wxSP_ARROW_KEYS, 0.0, 359.9, 0.0, 1.0);
   in->Add(m_set_ctrl, 0);
 
-  in->Add(new wxStaticText(panel, wxID_ANY,
-                           _("Target drift rate (kt, 0 = use GRIB/none):")),
-          0, wxALIGN_CENTER_VERTICAL);
+  in->Add(plain(_("Target drift rate (kt, 0 = use GRIB/none):")), 0,
+          wxALIGN_CENTER_VERTICAL);
   m_drift_ctrl = new wxSpinCtrlDouble(panel, wxID_ANY, wxEmptyString,
                                       wxDefaultPosition, wxDefaultSize,
                                       wxSP_ARROW_KEYS, 0.0, 20.0, 0.0, 0.1);
   in->Add(m_drift_ctrl, 0);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("Own ship (optional):")), 0,
+  m_use_manual_own = new wxCheckBox(panel, wxID_ANY, wxEmptyString);
+  m_use_manual_own->SetToolTip(
+      _("Off: use OpenCPN's GPS fix. On: enter own-ship position and speed."));
+  in->Add(label_with_check(m_use_manual_own, _("Own ship (manual):")), 0,
           wxALIGN_CENTER_VERTICAL);
   m_own_pos_ctrl = new wxTextCtrl(panel, wxID_ANY);
-  m_own_pos_ctrl->SetHint(_("position, blank = use GPS fix"));
+  m_own_pos_ctrl->SetHint(_("e.g. 45 10 N, 015 05 E"));
+  m_own_pos_ctrl->Enable(false);
   in->Add(m_own_pos_ctrl, 1, wxEXPAND);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("Own ship speed (kt):")), 0,
-          wxALIGN_CENTER_VERTICAL);
+  in->Add(plain(_("Own ship speed (kt):")), 0, wxALIGN_CENTER_VERTICAL);
   m_own_sog_ctrl = new wxSpinCtrlDouble(panel, wxID_ANY, wxEmptyString,
                                         wxDefaultPosition, wxDefaultSize,
                                         wxSP_ARROW_KEYS, 0.0, 99.0, 0.0, 0.1);
+  m_own_sog_ctrl->Enable(false);
   in->Add(m_own_sog_ctrl, 0);
 
   outer->Add(in, 0, wxEXPAND | wxALL, 10);
@@ -162,6 +180,31 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   recalc->Bind(wxEVT_BUTTON, &InterceptPanel::OnRecalculate, this);
   browse->Bind(wxEVT_BUTTON, &InterceptPanel::OnBrowseGrib, this);
   Bind(wxEVT_CLOSE_WINDOW, &InterceptPanel::OnClose, this);
+  m_lock_position->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
+  m_lock_time->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
+  m_use_manual_own->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnManualOwnToggled,
+                         this);
+}
+
+void InterceptPanel::OnLockToggled(wxCommandEvent& WXUNUSED(event)) {
+  m_position_ctrl->Enable(!m_lock_position->IsChecked());
+  m_date_ctrl->Enable(!m_lock_time->IsChecked());
+  m_time_ctrl->Enable(!m_lock_time->IsChecked());
+}
+
+void InterceptPanel::OnManualOwnToggled(wxCommandEvent& WXUNUSED(event)) {
+  const bool manual = m_use_manual_own->IsChecked();
+  m_own_pos_ctrl->Enable(manual);
+  m_own_sog_ctrl->Enable(manual);
+  if (manual && m_own_pos_ctrl->IsEmpty()) {
+    // Seed from the live fix so the operator tweaks rather than retypes.
+    if (auto fix = m_plugin ? m_plugin->LiveFix() : std::nullopt) {
+      m_own_pos_ctrl->SetValue(wxString::Format(
+          "%.5f %c, %.5f %c", std::fabs(fix->lat), fix->lat >= 0 ? 'N' : 'S',
+          std::fabs(fix->lon), fix->lon >= 0 ? 'E' : 'W'));
+      m_own_sog_ctrl->SetValue(fix->sog_kt);
+    }
+  }
 }
 
 void InterceptPanel::OnBrowseGrib(wxCommandEvent& WXUNUSED(event)) {
@@ -188,11 +231,12 @@ void InterceptPanel::OnRecalculate(wxCommandEvent& WXUNUSED(event)) {
   }
 
   std::optional<OwnShipState> own;
-  wxString own_text = m_own_pos_ctrl->GetValue();
-  own_text.Trim(true).Trim(false);
-  if (!own_text.IsEmpty()) {
+  if (m_use_manual_own->IsChecked()) {
     double olat, olon;
-    if (!ParsePos(own_text, this, _("Own-ship position"), &olat, &olon)) return;
+    if (!ParsePos(m_own_pos_ctrl->GetValue(), this, _("Own-ship position"),
+                  &olat, &olon)) {
+      return;
+    }
     own = OwnShipState{olat, olon, m_own_sog_ctrl->GetValue()};
   } else {
     own = m_plugin ? m_plugin->LiveFix() : std::nullopt;

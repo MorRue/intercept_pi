@@ -259,7 +259,11 @@ bool SplitPosition(const wxString& text, wxString* lat_text,
 }
 
 std::vector<wxString> CraftTypeLabels() {
-  return {_("Rubber boat (inflatable, RIB, liferaft)"),
+  // "Unknown" is the default; LookupLeewayCoefficients() matches only
+  // "wooden" and falls everything else through to the rubber-hull
+  // coefficient, so an unknown craft gets that (the more cautious one).
+  return {_("Unknown / not specified"),
+          _("Rubber boat (inflatable, RIB, liferaft)"),
           _("Wooden boat (displacement hull)")};
 }
 
