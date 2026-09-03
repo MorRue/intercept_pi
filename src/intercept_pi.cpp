@@ -426,7 +426,10 @@ void intercept_pi::SetPositionFix(PlugIn_Position_Fix& pfix) {
 
 void intercept_pi::OnToolbarToolCallback(int WXUNUSED(id)) {
   // A C++ exception escaping a plugin callback aborts the whole OpenCPN
-  // process. Contain it here (and in the panel's Recalculate handler).
+  // process. Contain it here (and in the panel's Recalculate handler). The
+  // only call below that can throw is the InterceptPanel constructor; if it
+  // does, m_panel stays null and nothing is shown -- a consistent no-op, as
+  // if the toolbar click had not happened.
   try {
     if (!m_panel) m_panel = new InterceptPanel(m_parent_window, this);
 
