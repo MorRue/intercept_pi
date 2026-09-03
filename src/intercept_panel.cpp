@@ -261,23 +261,40 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_own_pos_ctrl->Enable(false);
   m_own_sog_ctrl->Enable(false);
 
-  // -- result box; Recalculate shares the ETA row, bottom-right --
+  // -- result box: target state, then the course to steer. Recalculate
+  //    shares the ETA row at bottom-right, no row of its own. --
   {
     auto* box = new wxStaticBoxSizer(wxVERTICAL, panel, _("Result"));
     wxWindow* bp = box->GetStaticBox();
     group_boxes.push_back(box->GetStaticBox());
 
-    auto* out = new wxFlexGridSizer(0, 2, 4, 12);
-    out->AddGrowableCol(1);
-    m_out_datum = AddRow(bp, out, _("Datum (intercept point):"));
-    m_out_drift = AddRow(bp, out, _("Drift applied:"));
-    m_out_moved = AddRow(bp, out, _("Target moved from report:"));
-    m_out_elapsed = AddRow(bp, out, _("Elapsed since report:"));
-    m_out_bearing = AddRow(bp, out, _("Bearing to steer:"));
-    m_out_distance = AddRow(bp, out, _("Distance:"));
+    auto rsubhead = [&](const wxString& text) {
+      auto* st = new wxStaticText(bp, wxID_ANY, text);
+      sub_headers.push_back(st);
+      box->Add(st, 0, wxLEFT | wxRIGHT | wxTOP, 6);
+    };
+    auto rgrid = [&]() {
+      auto* fg = new wxFlexGridSizer(0, 2, 4, 12);
+      fg->AddGrowableCol(1);
+      box->Add(fg, 0, wxEXPAND | wxALL, 6);
+      return fg;
+    };
 
-    out->Add(new wxStaticText(bp, wxID_ANY, _("ETA:")), 0,
-             wxALIGN_CENTER_VERTICAL);
+    rsubhead(_("Target"));
+    auto* tg = rgrid();
+    m_out_datum = AddRow(bp, tg, _("Estimated position (now):"));
+    m_out_drift = AddRow(bp, tg, _("Drift applied:"));
+    m_out_moved = AddRow(bp, tg, _("Moved from report:"));
+    m_out_elapsed = AddRow(bp, tg, _("Elapsed since report:"));
+
+    rsubhead(_("Course to steer"));
+    auto* cg = rgrid();
+    m_out_intercept = AddRow(bp, cg, _("Intercept point:"));
+    m_out_bearing = AddRow(bp, cg, _("Bearing:"));
+    m_out_distance = AddRow(bp, cg, _("Distance to run:"));
+
+    cg->Add(new wxStaticText(bp, wxID_ANY, _("ETA:")), 0,
+            wxALIGN_CENTER_VERTICAL);
     auto* eta_row = new wxBoxSizer(wxHORIZONTAL);
     m_out_eta = new wxStaticText(bp, wxID_ANY, wxT("--"));
     eta_row->Add(m_out_eta, 1, wxALIGN_CENTER_VERTICAL);
@@ -286,10 +303,9 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
         _("Age the datum to the current time and recompute the course to "
           "steer from the inputs above, then redraw the chart."));
     eta_row->Add(recalc, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
-    out->Add(eta_row, 1, wxEXPAND);
+    cg->Add(eta_row, 1, wxEXPAND);
     recalc->Bind(wxEVT_BUTTON, &InterceptPanel::OnRecalculate, this);
 
-    box->Add(out, 1, wxEXPAND | wxALL, 6);
     outer->Add(box, 0, wxEXPAND | wxALL, 10);
   }
 
@@ -319,7 +335,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   // Only the group-box titles shrink; the fields inside keep the body size.
   // Setting a font on a wxStaticBox propagates to its children, so after
   // shrinking each box we restore every child to the normal font (and the
-  // drift sub-headers to italic).
+  // drift / result sub-headers to italic).
   wxFont normal_font = panel->GetFont();
   if (normal_font.IsOk()) {
     wxFont small_font = normal_font.Smaller();
@@ -471,6 +487,7 @@ void InterceptPanel::OnRecalculate(wxCommandEvent& WXUNUSED(event)) {
   c.manual_drift_kt = drift_kt;
   c.manual_set_deg = m_set_ctrl->GetValue();
   c.FinalizeDatum();
+  if (own) c.SolveIntercept(*own);
 
   m_last_case = c;
   m_last_own = own;
@@ -513,20 +530,42 @@ void InterceptPanel::ShowOutputs(const Case& c,
           ? wxString(wxT("--"))
           : Wx(FormatEtaHhMm(c.elapsed.GetSeconds().ToDouble() / 3600.0)));
 
-  if (own) {
-    InterceptResult r = CourseToSteer(own->lat, own->lon, c.aged_lat,
-                                      c.aged_lon, own->sog_kt);
-    m_out_bearing->SetLabel(
-        wxString::Format(_("%s deg"), Wx(FormatBearingDeg(r.bearing_deg))));
-    m_out_distance->SetLabel(
-        wxString::Format(_("%s NM"), Wx(FormatDistanceNm(r.distance_nm))));
-    m_out_eta->SetLabel(r.eta.has_value()
-                            ? Wx(FormatEtaHhMm(*r.eta))
-                            : wxString(_("-- (own-ship speed not set)")));
-  } else {
+  if (!own) {
     const wxString none = _("-- (no own-ship position)");
+    m_out_intercept->SetLabel(none);
     m_out_bearing->SetLabel(none);
     m_out_distance->SetLabel(none);
     m_out_eta->SetLabel(none);
+    return;
   }
+
+  if (c.intercept_solved) {
+    // The target keeps drifting during the transit -- steer to where it will
+    // be, not where it is now.
+    m_out_intercept->SetLabel(wxString::Format(
+        "%s, %s", Wx(FormatLatDDM(c.intercept_lat)),
+        Wx(FormatLonDDM(c.intercept_lon))));
+    m_out_bearing->SetLabel(wxString::Format(
+        _("%s deg"), Wx(FormatBearingDeg(c.intercept_bearing_deg))));
+    m_out_distance->SetLabel(wxString::Format(
+        _("%s NM"), Wx(FormatDistanceNm(c.intercept_distance_nm))));
+    m_out_eta->SetLabel(Wx(FormatEtaHhMm(c.intercept_eta_hours)));
+    return;
+  }
+
+  // No moving-target solution: steer at the present estimated position and
+  // say why the lead is missing.
+  InterceptResult r = CourseToSteer(own->lat, own->lon, c.aged_lat, c.aged_lon,
+                                    own->sog_kt);
+  m_out_intercept->SetLabel(
+      own->sog_kt > 0.0
+          ? wxString(_("-- (target outpaces own ship)"))
+          : wxString(_("-- (own-ship speed not set)")));
+  m_out_bearing->SetLabel(
+      wxString::Format(_("%s deg"), Wx(FormatBearingDeg(r.bearing_deg))));
+  m_out_distance->SetLabel(
+      wxString::Format(_("%s NM"), Wx(FormatDistanceNm(r.distance_nm))));
+  m_out_eta->SetLabel(r.eta.has_value()
+                          ? Wx(FormatEtaHhMm(*r.eta))
+                          : wxString(_("-- (own-ship speed not set)")));
 }

@@ -205,15 +205,19 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      used), report fields start unlocked. `UpdateGribLock()`: while a GRIB
      path is set the two explicit-drift fields are disabled (file
      wind+current win).
-     Then a **"Result" box** — datum, drift source, "target moved from
-     report", elapsed, bearing, distance, and an ETA row that also carries
-     the **[Recalculate]** button (bottom-right, same row, no row of its
-     own). Below the box, three **display checkboxes** ("Show reported
-     position", "Show estimated position", "Show routes", all on) hide/show
-     chart objects. Every input control (and the lock checkboxes, Browse and
-     Recalculate) carries a `SetToolTip()`; text position fields also use
-     `SetHint()` placeholders.
-     **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
+     Then a **"Result" box** with two italic sub-headers. **Target** —
+     estimated position (now), drift source, "moved from report", elapsed.
+     **Course to steer** — intercept point, bearing, distance to run, and an
+     ETA row that also carries the **[Recalculate]** button (bottom-right,
+     same row, no row of its own). Intercept point / bearing / distance / ETA
+     come from `Case::intercept_*` when the moving-target solve converged,
+     otherwise from `CourseToSteer` to the present estimated position with a
+     note why (speed unknown, or target outpaces own-ship). Below the box,
+     three **display checkboxes** ("Show reported position", "Show estimated
+     position", "Show routes", all on) hide/show chart objects. Every input
+     control (and the lock checkboxes, Browse and Recalculate) carries a
+     `SetToolTip()`; text position fields also use `SetHint()` placeholders.
+     **[Recalculate]** re-runs `FinalizeDatum()` + `SolveIntercept()`, updates
      the output rows in place, and calls
      `intercept_pi::ApplyCase(c, own, show_target, show_estimated, show_lines)`
      to refresh the chart; toggling a display checkbox re-applies the stored
@@ -227,9 +231,11 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      - **"Estimated position" mark** (circle) at the aged datum, where the
        target is estimated to be now (toggle "Show estimated position");
      - **"Intercept" mark** (diamond) at the far end of the course line —
-       where own-ship's course meets the target. Visibility tied to "Show
-       routes". In the v0.1 model it coincides with the estimated position; a
-       moving-target solution (#5) will move it downrange;
+       the moving-target meeting point from `Case::SolveIntercept` (where
+       own-ship's straight course meets the still-drifting target). Visibility
+       tied to "Show routes". Falls back to the estimated position when the
+       solve doesn't converge (no own-ship speed, or the target outpaces
+       own-ship);
      - **"Target drift" track** (`AddPlugInTrack`) reported → datum;
      - **"Course to steer" route** (`AddPlugInRoute`, activatable) own-ship
        → intercept.
@@ -305,17 +311,20 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    the first custom `RenderOverlay` drawing; use the #3 harness (`test_overlay`
    asserts a ring of set pixels at radius `E` around the projected datum).
 
-5. **Intercept onto a *moving* datum** (Planned direction #4, full form): once
-   #1–#4 are in, the course to steer leads the target — solve for the point
-   where own-ship and the drifting datum coincide, ETA that updates as it
-   drifts. Builds directly on #1 by iterating the datum forward.
-
-6. **Search patterns** (Planned direction #5): expanding square, sector,
+5. **Search patterns** (Planned direction #5): expanding square, sector,
    parallel track, emitted as OpenCPN routes centred on the datum.
 
 *Landed:*
 - Datum ageing (PR #5) — `ComputeAgedDatum` / `FinalizeDatum` on the `Case`,
   GRIB and manual set & drift as sources, drift optional.
+- Moving-target intercept — `SolveMovingIntercept` (`src/intercept_solve.{h,cpp}`,
+  `test_intercept_solve`): fixed-point iteration `t ← range(own, target_at(t))
+  / sog` on the transit time, `target_at` extrapolating the same drift model
+  past "now". `Case::SolveIntercept(own)` wires it up (one `GribReader`
+  reused across iterations) and fills `Case::intercept_*`; the panel and the
+  course route/mark use it, falling back to the present estimated position
+  when it doesn't converge (sog ≤ 0, or the target outpaces own-ship). ETA
+  is now the transit time to the meeting point, not range-to-datum-now / sog.
 - Leeway coefficient fixed `0.36 → 0.036` and pinned by
   `test/test_reference_leeway.cpp` against a published SAR worked example + the
   Allen & Plourde leeway band (PR #9). Input validation + `CombineVectors` guard
