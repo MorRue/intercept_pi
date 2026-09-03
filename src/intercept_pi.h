@@ -90,14 +90,12 @@ public:
 
 private:
   /**
-   * (Re)builds the two-waypoint course-line route (own-ship snapshot to
-   * datum) under the fixed kInterceptRouteGuid and registers it with
-   * OpenCPN, replacing whatever was previously registered under that GUID
-   * so recomputing a case does not pile up routes on the chart. With no
-   * own-ship fix there is nothing to draw the line from, so this just
-   * removes any stale previous route instead of adding a new one.
+   * (Re)places a single chart mark at the case's datum under the fixed
+   * kDatumMarkGuid, deleting whatever was there before so recomputing a
+   * case does not pile up marks. The course *line* from own-ship to the
+   * datum is Next #2b/#4 in CLAUDE.md.
    */
-  void UpdateInterceptRoute(const Case& c);
+  void UpdateDatumMark(const Case& c);
 
   wxWindow* m_parent_window;
   wxBitmap m_panel_bitmap;
