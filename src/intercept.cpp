@@ -5,9 +5,9 @@
  * License: GPLv3+  (see COPYING)
  ******************************************************************************/
 
-#include "intercept.h"
+#include "portability.h"  // must precede <cmath>: M_PI on MSVC
 
-#include <cmath>
+#include "intercept.h"
 
 namespace {
 
