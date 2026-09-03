@@ -12,6 +12,7 @@
 #ifndef WX_PRECOMP
 #include <wx/wx.h>
 #endif
+#include <wx/collpane.h>
 #include <wx/datectrl.h>
 #include <wx/spinctrl.h>
 #include <wx/timectrl.h>
@@ -36,7 +37,14 @@ private:
   void OnRecalculate(wxCommandEvent& event);
   void OnBrowseGrib(wxCommandEvent& event);
   void OnClearGrib(wxCommandEvent& event);
+  void OnGribPaneChanged(wxCollapsiblePaneEvent& event);
   void OnClose(wxCloseEvent& event);
+
+  // Disables the manual "Target drift" fields while a GRIB file is set, and
+  // keeps the GRIB group expanded so its Clear button stays reachable.
+  void UpdateGribLock();
+  // Re-flows the panel and frame after the collapsible group changes size.
+  void RelayoutForPane();
   // Every "lock" checkbox works the same way: checked disables its field(s).
   void OnLockToggled(wxCommandEvent& event);
   // Re-applies the last computed case with the current show/hide checkboxes so
@@ -62,6 +70,8 @@ private:
   wxCheckBox* m_show_target;     // "Target" mark at the reported position.
   wxCheckBox* m_show_estimated;  // "Estimated position" mark at the datum.
   wxCheckBox* m_show_routes;     // Drift track + course-to-steer route.
+
+  wxCollapsiblePane* m_grib_pane;  // GRIB file + craft type + POB.
 
   wxTextCtrl* m_position_ctrl;
   wxDatePickerCtrl* m_date_ctrl;

@@ -69,11 +69,8 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   auto* outer = new wxBoxSizer(wxVERTICAL);
 
   // -- inputs --
-  auto* in = new wxFlexGridSizer(0, 2, 6, 8);
-  in->AddGrowableCol(1);
-
-  auto plain = [&](const wxString& text) {
-    return new wxStaticText(panel, wxID_ANY, text);
+  auto plain = [&](wxWindow* p, const wxString& text) {
+    return new wxStaticText(p, wxID_ANY, text);
   };
   // Right cell: the field, then a "lock" checkbox on its right. Every lock
   // checkbox behaves identically -- checked disables the field.
@@ -87,80 +84,112 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     return s;
   };
 
-  in->Add(plain(_("Reported position:")), 0, wxALIGN_CENTER_VERTICAL);
+  auto* in_top = new wxFlexGridSizer(0, 2, 6, 8);
+  in_top->AddGrowableCol(1);
+
+  in_top->Add(plain(panel, _("Reported position:")), 0,
+              wxALIGN_CENTER_VERTICAL);
   m_position_ctrl = new wxTextCtrl(panel, wxID_ANY);
   m_position_ctrl->SetHint(_("e.g. 45 30.5 N, 015 20.3 E"));
   {
     auto* f = new wxBoxSizer(wxHORIZONTAL);
     f->Add(m_position_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-    in->Add(with_lock(f, &m_lock_position), 1, wxEXPAND);
+    in_top->Add(with_lock(f, &m_lock_position), 1, wxEXPAND);
   }
 
-  in->Add(plain(_("Time of report (local):")), 0, wxALIGN_CENTER_VERTICAL);
+  in_top->Add(plain(panel, _("Time of report (local):")), 0,
+              wxALIGN_CENTER_VERTICAL);
   m_date_ctrl = new wxDatePickerCtrl(panel, wxID_ANY, wxDateTime::Now());
   m_time_ctrl = new wxTimePickerCtrl(panel, wxID_ANY, wxDateTime::Now());
   {
     auto* f = new wxBoxSizer(wxHORIZONTAL);
     f->Add(m_date_ctrl, 0, wxALIGN_CENTER_VERTICAL);
     f->Add(m_time_ctrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
-    in->Add(with_lock(f, &m_lock_time), 1, wxEXPAND);
+    in_top->Add(with_lock(f, &m_lock_time), 1, wxEXPAND);
   }
+  outer->Add(in_top, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
-  in->Add(plain(_("Craft type:")), 0, wxALIGN_CENTER_VERTICAL);
-  m_craft_choice = new wxChoice(panel, wxID_ANY);
-  for (const auto& label : CraftTypeLabels()) m_craft_choice->Append(label);
-  m_craft_choice->SetSelection(0);  // "Unknown / not specified"
-  in->Add(m_craft_choice, 1, wxEXPAND);
+  // Collapsible "GRIB file" group. A GRIB is the alternative to hand-entered
+  // drift, so craft type (drives leeway) and POB sit here too. While a file
+  // is set, the manual "Target drift" fields are disabled and this group is
+  // forced open so its Clear button stays reachable -- see UpdateGribLock().
+  m_grib_pane = new wxCollapsiblePane(
+      panel, wxID_ANY, _("GRIB file (wind & current) + craft details"));
+  {
+    wxWindow* gp = m_grib_pane->GetPane();
+    auto* pg = new wxFlexGridSizer(0, 2, 6, 8);
+    pg->AddGrowableCol(1);
 
-  in->Add(plain(_("Persons on board (optional):")), 0, wxALIGN_CENTER_VERTICAL);
-  m_pob_ctrl = new wxSpinCtrl(panel, wxID_ANY, "0", wxDefaultPosition,
-                              wxDefaultSize, wxSP_ARROW_KEYS, 0, 999, 0);
-  in->Add(m_pob_ctrl, 0);
+    pg->Add(plain(gp, _("GRIB file:")), 0, wxALIGN_CENTER_VERTICAL);
+    auto* grib_row = new wxBoxSizer(wxHORIZONTAL);
+    m_grib_path_ctrl = new wxTextCtrl(gp, wxID_ANY, wxEmptyString,
+                                      wxDefaultPosition, wxDefaultSize,
+                                      wxTE_READONLY);
+    grib_row->Add(m_grib_path_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
+    auto* browse = new wxButton(gp, wxID_ANY, _("Browse..."));
+    grib_row->Add(browse, 0, wxLEFT, 6);
+    auto* clear_grib = new wxButton(gp, wxID_ANY, _("Clear"));
+    clear_grib->SetToolTip(_("Remove the GRIB file; re-enable manual drift"));
+    grib_row->Add(clear_grib, 0, wxLEFT, 6);
+    pg->Add(grib_row, 1, wxEXPAND);
 
-  in->Add(plain(_("GRIB file (optional):")), 0, wxALIGN_CENTER_VERTICAL);
-  auto* grib_row = new wxBoxSizer(wxHORIZONTAL);
-  m_grib_path_ctrl = new wxTextCtrl(panel, wxID_ANY, wxEmptyString,
-                                    wxDefaultPosition, wxDefaultSize,
-                                    wxTE_READONLY);
-  grib_row->Add(m_grib_path_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-  auto* browse = new wxButton(panel, wxID_ANY, _("Browse..."));
-  grib_row->Add(browse, 0, wxLEFT, 6);
-  auto* clear_grib = new wxButton(panel, wxID_ANY, _("Clear"));
-  clear_grib->SetToolTip(_("Remove the GRIB file; fall back to no environment"));
-  grib_row->Add(clear_grib, 0, wxLEFT, 6);
-  in->Add(grib_row, 1, wxEXPAND);
+    pg->Add(plain(gp, _("Craft type:")), 0, wxALIGN_CENTER_VERTICAL);
+    m_craft_choice = new wxChoice(gp, wxID_ANY);
+    for (const auto& label : CraftTypeLabels()) m_craft_choice->Append(label);
+    m_craft_choice->SetSelection(0);  // "Unknown / not specified"
+    pg->Add(m_craft_choice, 1, wxEXPAND);
 
-  in->Add(plain(_("Target drift set (deg true):")), 0,
-          wxALIGN_CENTER_VERTICAL);
+    pg->Add(plain(gp, _("Persons on board (optional):")), 0,
+            wxALIGN_CENTER_VERTICAL);
+    m_pob_ctrl = new wxSpinCtrl(gp, wxID_ANY, "0", wxDefaultPosition,
+                                wxDefaultSize, wxSP_ARROW_KEYS, 0, 999, 0);
+    pg->Add(m_pob_ctrl, 0);
+
+    gp->SetSizer(pg);
+    pg->SetSizeHints(gp);
+    browse->Bind(wxEVT_BUTTON, &InterceptPanel::OnBrowseGrib, this);
+    clear_grib->Bind(wxEVT_BUTTON, &InterceptPanel::OnClearGrib, this);
+  }
+  m_grib_pane->Bind(wxEVT_COLLAPSIBLEPANE_CHANGED,
+                    &InterceptPanel::OnGribPaneChanged, this);
+  outer->Add(m_grib_pane, 0, wxEXPAND | wxALL, 10);
+
+  auto* in_bot = new wxFlexGridSizer(0, 2, 6, 8);
+  in_bot->AddGrowableCol(1);
+
+  in_bot->Add(plain(panel, _("Target drift set (deg true):")), 0,
+              wxALIGN_CENTER_VERTICAL);
   m_set_ctrl = new wxSpinCtrlDouble(panel, wxID_ANY, wxEmptyString,
                                     wxDefaultPosition, wxDefaultSize,
                                     wxSP_ARROW_KEYS, 0.0, 359.9, 0.0, 1.0);
-  in->Add(m_set_ctrl, 0);
+  in_bot->Add(m_set_ctrl, 0);
 
-  in->Add(plain(_("Target drift rate (kt, 0 = use GRIB/none):")), 0,
-          wxALIGN_CENTER_VERTICAL);
+  in_bot->Add(plain(panel, _("Target drift rate (kt, 0 = none):")), 0,
+              wxALIGN_CENTER_VERTICAL);
   m_drift_ctrl = new wxSpinCtrlDouble(panel, wxID_ANY, wxEmptyString,
                                       wxDefaultPosition, wxDefaultSize,
                                       wxSP_ARROW_KEYS, 0.0, 20.0, 0.0, 0.1);
-  in->Add(m_drift_ctrl, 0);
+  in_bot->Add(m_drift_ctrl, 0);
 
-  in->Add(plain(_("Own ship position:")), 0, wxALIGN_CENTER_VERTICAL);
+  in_bot->Add(plain(panel, _("Own ship position:")), 0,
+              wxALIGN_CENTER_VERTICAL);
   m_own_pos_ctrl = new wxTextCtrl(panel, wxID_ANY);
   m_own_pos_ctrl->SetHint(_("e.g. 45 10 N, 015 05 E"));
   {
     auto* f = new wxBoxSizer(wxHORIZONTAL);
     f->Add(m_own_pos_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-    in->Add(with_lock(f, &m_lock_own_pos), 1, wxEXPAND);
+    in_bot->Add(with_lock(f, &m_lock_own_pos), 1, wxEXPAND);
   }
 
-  in->Add(plain(_("Own ship speed (kt):")), 0, wxALIGN_CENTER_VERTICAL);
+  in_bot->Add(plain(panel, _("Own ship speed (kt):")), 0,
+              wxALIGN_CENTER_VERTICAL);
   m_own_sog_ctrl = new wxSpinCtrlDouble(panel, wxID_ANY, wxEmptyString,
                                         wxDefaultPosition, wxDefaultSize,
                                         wxSP_ARROW_KEYS, 0.0, 99.0, 0.0, 0.1);
   {
     auto* f = new wxBoxSizer(wxHORIZONTAL);
     f->Add(m_own_sog_ctrl, 0, wxALIGN_CENTER_VERTICAL);
-    in->Add(with_lock(f, &m_lock_own_sog), 1, wxEXPAND);
+    in_bot->Add(with_lock(f, &m_lock_own_sog), 1, wxEXPAND);
   }
 
   // Own-ship position and speed start locked: use the live GPS fix by default,
@@ -170,7 +199,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_own_pos_ctrl->Enable(false);
   m_own_sog_ctrl->Enable(false);
 
-  outer->Add(in, 0, wxEXPAND | wxALL, 10);
+  outer->Add(in_bot, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
   auto* disp_row = new wxBoxSizer(wxHORIZONTAL);
   m_show_target = new wxCheckBox(panel, wxID_ANY, _("Show reported position"));
@@ -207,8 +236,6 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   SetSizerAndFit(frame_sizer);
 
   recalc->Bind(wxEVT_BUTTON, &InterceptPanel::OnRecalculate, this);
-  browse->Bind(wxEVT_BUTTON, &InterceptPanel::OnBrowseGrib, this);
-  clear_grib->Bind(wxEVT_BUTTON, &InterceptPanel::OnClearGrib, this);
   m_show_target->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   m_show_estimated->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   m_show_routes->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
@@ -251,11 +278,40 @@ void InterceptPanel::OnBrowseGrib(wxCommandEvent& WXUNUSED(event)) {
                   _("GRIB files|*.grb;*.grb2;*.grib;*.grib2;*.gr2;*.bin|"
                     "All files (*.*)|*.*"),
                   wxFD_OPEN | wxFD_FILE_MUST_EXIST);
-  if (fd.ShowModal() == wxID_OK) m_grib_path_ctrl->SetValue(fd.GetPath());
+  if (fd.ShowModal() == wxID_OK) {
+    m_grib_path_ctrl->SetValue(fd.GetPath());
+    UpdateGribLock();
+  }
 }
 
 void InterceptPanel::OnClearGrib(wxCommandEvent& WXUNUSED(event)) {
   m_grib_path_ctrl->Clear();
+  UpdateGribLock();
+}
+
+void InterceptPanel::OnGribPaneChanged(wxCollapsiblePaneEvent& WXUNUSED(event)) {
+  // A GRIB file in use must stay visible so its Clear button is reachable --
+  // snap the group back open if the user tries to collapse it.
+  if (!m_grib_path_ctrl->GetValue().IsEmpty() && m_grib_pane->IsCollapsed()) {
+    m_grib_pane->Expand();
+  }
+  RelayoutForPane();
+}
+
+void InterceptPanel::UpdateGribLock() {
+  const bool have_grib = !m_grib_path_ctrl->GetValue().IsEmpty();
+  // With a GRIB, wind + current from the file drive the datum -- hand-entered
+  // set & drift would be ignored, so disable them to make that clear.
+  m_set_ctrl->Enable(!have_grib);
+  m_drift_ctrl->Enable(!have_grib);
+  if (have_grib && m_grib_pane->IsCollapsed()) m_grib_pane->Expand();
+  RelayoutForPane();
+}
+
+void InterceptPanel::RelayoutForPane() {
+  m_content->Layout();
+  m_content->Fit();
+  Fit();
 }
 
 void InterceptPanel::OnDisplayToggled(wxCommandEvent& WXUNUSED(event)) {
