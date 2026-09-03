@@ -125,18 +125,21 @@ public:
   // --- Called by the InterceptPanel ---------------------------------------
   /** OpenCPN's live own-ship fix, or nullopt until the first one arrives. */
   std::optional<OwnShipState> LiveFix() const;
-  /** Store the case and (re)draw the datum mark + course route on the chart. */
+  /** Store the case and (re)draw the target/intercept marks, drift track and
+   *  course route on the chart. */
   void ApplyCase(const Case& c, const std::optional<OwnShipState>& own);
   /** The panel was closed by its own [x] -- clear the toolbar toggle. */
   void OnPanelClosed();
 
 private:
   /**
-   * (Re)places a single chart mark at the case's datum under the fixed
-   * kDatumMarkGuid, deleting whatever was there before so recomputing a
-   * case does not pile up marks.
+   * (Re)places the four chart objects for the current case, each on a fixed
+   * GUID (delete-before-add): "Target" mark at the reported position,
+   * "Intercept" mark at the aged datum, "Target drift" track between them,
+   * and (if own-ship is known) the "Course to steer" route.
    */
-  void UpdateDatumMark(const Case& c);
+  void UpdateChartObjects(const Case& c,
+                          const std::optional<OwnShipState>& own);
 
   /**
    * (Re)builds the two-point course-to-steer route (own-ship → datum) under

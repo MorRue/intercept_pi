@@ -198,11 +198,16 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      refresh the chart. Position but no speed → bearing + distance, no ETA;
      no position at all → datum only. Number formatting is pure
      (`format.{h,cpp}`) and unit-tested.
-   - **(b) On the chart** *(done in the v0.1 PR)*: a **datum mark** via
-     `AddSingleWaypoint`, plus an activatable **"Course to steer" route**
-     (own-ship → datum) via `AddPlugInRoute`. Both use fixed GUIDs and
-     delete-before-add so they don't pile up, and both are removed on
-     `DeInit`. **MSVC gotcha:** `Plugin_WaypointList`'s node methods are
+   - **(b) On the chart** *(done in the v0.1 PR)*, all on fixed GUIDs,
+     delete-before-add, removed on `DeInit`:
+     - **"Target" mark** at the reported position (left where reported);
+     - **"Intercept" mark** at the aged datum (where the target is now);
+     - **"Target drift" track** (`AddPlugInTrack`) reported → intercept;
+     - **"Course to steer" route** (`AddPlugInRoute`, activatable) own-ship
+       → intercept.
+     Route and track render in OpenCPN's different route/track styles, which
+     is how the two lines come out visually distinct without a custom
+     overlay. **MSVC gotcha:** `Plugin_WaypointList`'s node methods are
      `WX_DECLARE_LIST`'d in `ocpn_plugin.h` but the api-18 `opencpn.lib`
      doesn't export them (LNK2001 `wxPlugin_WaypointListNode::DeleteData`) —
      `intercept_pi.cpp` provides them locally under `#if defined(_MSC_VER)`
