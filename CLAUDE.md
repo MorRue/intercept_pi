@@ -3,14 +3,17 @@
 ## What this is
 
 An OpenCPN plugin that computes the course to steer to reach a reported
-position. Built for civil search and rescue in the Mediterranean: a distress
-position is reported, and the vessel needs to close it. The bearing to the
-last known position is not the course to steer, because the target drifts
-between the report and arrival.
+position, including the case where that position is itself drifting with
+wind and current. The bearing to the last known position is not generally
+the course to steer, because the target moves between the report and
+arrival. The drift model follows the standard SAR datum method — leeway
+plus total water current, summed as vectors.
 
-The name is deliberately neutral — it describes the mathematics, not the
-use case. The GitHub repository is named `intercept_pi` for the same
-reason.
+The naming is deliberately generic: it describes the mathematics, not a
+particular use case, and the repository is named `intercept_pi` for the
+same reason. Not affiliated with or endorsed by any search-and-rescue
+authority; **not verified for operational use** — see
+`docs/LEEWAY_NEEDS_VERIFICATION.md`.
 
 ## Author background
 
@@ -57,10 +60,11 @@ parsing), `intercept_panel.{h,cpp}` (the UI), `datum_age.{h,cpp}` +
 1. Case intake: position (DD/DDM/DMS), time of report, craft type, POB — done
 2. Datum: age the position forward using surface current + leeway
    (Allen & Plourde coefficients). With no environmental data at all,
-   datum = reported position. Method and leeway magnitude are confirmed
-   against IAMSAR Vol II & III and pinned by `test/test_reference_iamsar.cpp`;
-   the remaining simplifications (two craft buckets, no divergence, single
-   default coefficient) still want a SAR-literate review —
+   datum = reported position. Method and leeway magnitude are checked
+   against the standard SAR datum method and the Allen & Plourde data, and
+   pinned by `test/test_reference_leeway.cpp`; the remaining simplifications
+   (two craft buckets, no divergence, single default coefficient) still want
+   a SAR-literate review —
    `docs/LEEWAY_NEEDS_VERIFICATION.md`.
 3. Uncertainty radius: position error + drift error
 4. Intercept: course to steer + range + ETA. The **static form** (steer to the
@@ -313,11 +317,12 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
 - Datum ageing (PR #5) — `ComputeAgedDatum` / `FinalizeDatum` on the `Case`,
   GRIB and manual set & drift as sources, drift optional.
 - Leeway coefficient fixed `0.36 → 0.036` and pinned by
-  `test/test_reference_iamsar.cpp` against IAMSAR Vol II Appendix Q + the
-  Fig N-2 leeway band (PR #9). Input validation + `CombineVectors` guard
+  `test/test_reference_leeway.cpp` against a published SAR worked example + the
+  Allen & Plourde leeway band (PR #9). Input validation + `CombineVectors` guard
   (PR #7).
-- The datum *method* and the leeway *magnitude* are now both confirmed
-  against IAMSAR Vol II & III. Still unconfirmed by a SAR-literate human: the
+- The datum *method* and the leeway *magnitude* are now both checked
+  against the standard SAR method and Allen & Plourde. Still unconfirmed by
+  a SAR-literate human: the
   two-bucket craft model, the no-divergence simplification, and whether
   `0.036` (vs a more conservative ~0.07) is the right single default — see
   `docs/LEEWAY_NEEDS_VERIFICATION.md`.
