@@ -52,6 +52,8 @@ private:
   wxChoice* m_craft_choice;
   wxSpinCtrl* m_pob_ctrl;
   wxTextCtrl* m_grib_path_ctrl;
+  wxSpinCtrlDouble* m_set_ctrl;
+  wxSpinCtrlDouble* m_drift_ctrl;
   wxTextCtrl* m_own_pos_ctrl;
   wxSpinCtrlDouble* m_own_sog_ctrl;
 

@@ -209,11 +209,17 @@ void Case::FinalizeDatum() {
     grib = std::make_unique<GribReader>(wxFileName(grib_file_path));
   }
 
-  // No case-dialog field for a manual set & drift yet -- ComputeAgedDatum()
-  // falls back to zero drift when grib_file_path was left empty.
+  // Hand-entered set & drift, used by ComputeAgedDatum() only when there is
+  // no GRIB file. With neither, drift is zero and the datum is the reported
+  // position.
+  ManualSetAndDrift manual;
+  manual.available = has_manual_drift;
+  manual.set_deg = manual_set_deg;
+  manual.drift_kt = manual_drift_kt;
+
   AgedDatum aged =
       ComputeAgedDatum(lat, lon, time_of_report, wxDateTime::Now(),
-                        craft_type, grib.get(), ManualSetAndDrift());
+                        craft_type, grib.get(), manual);
   aged_lat = aged.lat;
   aged_lon = aged.lon;
   elapsed = aged.elapsed;
