@@ -40,7 +40,7 @@ namespace {
 // Fixed so every recompute replaces the same mark / route (delete-by-GUID,
 // then add) instead of piling a new one onto the chart each time a case is
 // confirmed. Arbitrary but stable -- not looked up against anything else.
-const wxString kInterceptMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a001");
+const wxString kEstimatedMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a001");
 const wxString kCourseRouteGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a002");
 const wxString kTargetMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a003");
 const wxString kDriftTrackGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a004");
@@ -350,7 +350,7 @@ bool intercept_pi::DeInit() {
     m_panel = nullptr;
   }
   wxString g;
-  g = kInterceptMarkGuid; DeleteSingleWaypoint(g);
+  g = kEstimatedMarkGuid; DeleteSingleWaypoint(g);
   g = kTargetMarkGuid;    DeleteSingleWaypoint(g);
   g = kDriftTrackGuid;    DeletePlugInTrack(g);
   g = kCourseRouteGuid;   DeletePlugInRoute(g);
@@ -402,19 +402,21 @@ std::optional<OwnShipState> intercept_pi::LiveFix() const {
 
 void intercept_pi::ApplyCase(const Case& c,
                              const std::optional<OwnShipState>& own,
-                             bool show_target, bool show_lines) {
+                             bool show_target, bool show_estimated,
+                             bool show_lines) {
   m_case = c;
-  UpdateChartObjects(c, own, show_target, show_lines);
+  UpdateChartObjects(c, own, show_target, show_estimated, show_lines);
   RequestRefresh(m_parent_window);
 }
 
 void intercept_pi::UpdateChartObjects(const Case& c,
                                       const std::optional<OwnShipState>& own,
-                                      bool show_target, bool show_lines) {
-  // Three objects, all delete-before-add on fixed GUIDs so a recalculation
-  // replaces rather than piles up:
+                                      bool show_target, bool show_estimated,
+                                      bool show_lines) {
+  // Four objects, all delete-before-add on fixed GUIDs so a recalculation
+  // replaces rather than piles up, each independently suppressible:
   //   * "Target" mark  -- the reported position, left where it was reported
-  //   * "Intercept" mark -- the aged datum, where the target is now
+  //   * "Estimated position" mark -- the aged datum, where the target is now
   //   * "Target drift"  -- a track from the reported position to the datum
   //   * "Course to steer" -- an activatable route from own-ship to the datum
   // Route and track render in different colours (OpenCPN's route vs track
@@ -429,11 +431,13 @@ void intercept_pi::UpdateChartObjects(const Case& c,
     AddSingleWaypoint(&target, /*b_permanent=*/true);
   }
 
-  g = kInterceptMarkGuid;
+  g = kEstimatedMarkGuid;
   DeleteSingleWaypoint(g);
-  PlugIn_Waypoint intercept(c.aged_lat, c.aged_lon, wxT("circle"),
-                            _("Intercept"), kInterceptMarkGuid);
-  AddSingleWaypoint(&intercept, /*b_permanent=*/true);
+  if (show_estimated) {
+    PlugIn_Waypoint estimated(c.aged_lat, c.aged_lon, wxT("circle"),
+                              _("Estimated position"), kEstimatedMarkGuid);
+    AddSingleWaypoint(&estimated, /*b_permanent=*/true);
+  }
 
   g = kDriftTrackGuid;
   DeletePlugInTrack(g);
@@ -447,7 +451,7 @@ void intercept_pi::UpdateChartObjects(const Case& c,
     track->pWaypointList->Append(
         new PlugIn_Waypoint(c.lat, c.lon, wxT("circle"), _("Reported")));
     track->pWaypointList->Append(new PlugIn_Waypoint(
-        c.aged_lat, c.aged_lon, wxT("circle"), _("Intercept")));
+        c.aged_lat, c.aged_lon, wxT("circle"), _("Estimated position")));
     AddPlugInTrack(track, /*b_permanent=*/true);
   }
 
@@ -470,7 +474,7 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   DeletePlugInRoute(guid);
 
   // No own-ship position means there is no course line to draw -- the marks
-  // still show target and intercept, and the panel still gives
+  // still show target and estimated position, and the panel still gives
   // bearing/distance if a position was entered in the panel.
   if (!own) return;
 
@@ -480,13 +484,13 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   auto* route = new PlugIn_Route();
   route->m_NameString = _("Course to steer");
   route->m_StartString = _("Own ship");
-  route->m_EndString = _("Intercept");
+  route->m_EndString = _("Estimated position");
   route->m_GUID = kCourseRouteGuid;
   route->pWaypointList = new Plugin_WaypointList();
   route->pWaypointList->Append(new PlugIn_Waypoint(
       points[0].lat, points[0].lon, wxT("circle"), _("Own ship")));
   route->pWaypointList->Append(new PlugIn_Waypoint(
-      points[1].lat, points[1].lon, wxT("circle"), _("Intercept")));
+      points[1].lat, points[1].lon, wxT("circle"), _("Estimated position")));
 
   // Ordinary activatable route, so the navigator can select and steer it.
   AddPlugInRoute(route, /*b_permanent=*/true);

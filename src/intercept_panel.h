@@ -59,8 +59,9 @@ private:
   wxCheckBox* m_lock_time;
   wxCheckBox* m_lock_own_pos;
   wxCheckBox* m_lock_own_sog;
-  wxCheckBox* m_show_target;  // Draw the "Target" mark at the reported position.
-  wxCheckBox* m_show_routes;  // Draw the drift track and course-to-steer route.
+  wxCheckBox* m_show_target;     // "Target" mark at the reported position.
+  wxCheckBox* m_show_estimated;  // "Estimated position" mark at the datum.
+  wxCheckBox* m_show_routes;     // Drift track + course-to-steer route.
 
   wxTextCtrl* m_position_ctrl;
   wxDatePickerCtrl* m_date_ctrl;
