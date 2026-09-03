@@ -188,11 +188,14 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      **non-modal `wxFrame`** (float-on-parent, tool window) toggled by the
      toolbar button. OpenCPN stays fully interactive while it's open; the
      `[x]` hides it (state kept), `DeInit` destroys it. It holds **both** the
-     inputs — reported position, time, craft, POB, GRIB, **Target drift
-     set/rate** (hand-entered set & drift → `ComputeAgedDatum`'s
-     `ManualSetAndDrift`, used only when no GRIB), **Own ship** position/speed
-     override (blank = the live `SetPositionFix`) — and the **outputs** —
-     datum, which drift source was applied, elapsed, bearing/distance/ETA.
+     inputs — reported position and time of report (each with a **lock
+     checkbox** so they can't be fat-fingered once entered), craft type
+     (defaults to "Unknown"), optional POB, GRIB, **Target drift set/rate**
+     (hand-entered set & drift → `ComputeAgedDatum`'s `ManualSetAndDrift`,
+     used only when no GRIB), and an **Own ship (manual)** checkbox — off by
+     default (use the live `SetPositionFix`), on to enter position/speed by
+     hand — and the **outputs** — datum, drift source, "target moved from
+     report", elapsed, bearing/distance/ETA.
      **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
      the output rows in place, and calls `intercept_pi::ApplyCase()` to
      refresh the chart. Position but no speed → bearing + distance, no ETA;
