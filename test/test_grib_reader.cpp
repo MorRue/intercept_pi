@@ -12,10 +12,13 @@
 #include "grib_reader.h"
 
 #include <wx/datetime.h>
+#include <wx/filefn.h>
 #include <wx/filename.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <vector>
 
 namespace {
 
@@ -95,6 +98,46 @@ int main(int argc, char** argv) {
     GribReader reader(missing);
     EnvSample wind = reader.LookupWind(35.0, 15.0, kValidTime);
     Check(!wind.available, "nonexistent file: LookupWind unavailable");
+  }
+
+  // (4) Malformed input must be rejected cleanly -- no crash, no
+  // out-of-bounds read -- and simply yield "not available". The parser
+  // reads a hand-rolled binary format, so this is the safety net for a
+  // user pointing the file picker at a corrupt or non-GRIB file.
+  {
+    struct BadCase {
+      const char* name;
+      std::vector<unsigned char> bytes;
+    };
+    std::vector<BadCase> cases = {
+        {"empty file", {}},
+        {"random bytes, no GRIB magic",
+         {0x00, 0xFF, 0x42, 0x13, 0x37, 0xAB, 0xCD, 0xEF, 0x01, 0x02}},
+        {"GRIB magic then nothing",
+         {'G', 'R', 'I', 'B', 0, 0, 0, 2}},
+        {"GRIB magic, message length far past EOF",
+         {'G', 'R', 'I', 'B', 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF,
+          0x00, 0x01, 0x02}},
+        {"GRIB magic, section length past message end",
+         {'G', 'R', 'I', 'B', 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0x28,
+          0xFF, 0xFF, 0xFF, 0xFF, 0x01}},
+        {"0xFF filler", std::vector<unsigned char>(64, 0xFF)},
+    };
+
+    for (const auto& bad : cases) {
+      wxString tmp = wxFileName::CreateTempFileName("grib_bad");
+      FILE* f = std::fopen(tmp.mb_str(), "wb");
+      if (f) {
+        if (!bad.bytes.empty())
+          std::fwrite(bad.bytes.data(), 1, bad.bytes.size(), f);
+        std::fclose(f);
+        GribReader reader{wxFileName(tmp)};
+        EnvSample w = reader.LookupWind(35.0, 15.0, kValidTime);
+        EnvSample c = reader.LookupCurrent(35.0, 15.0, kValidTime);
+        Check(!w.available && !c.available, bad.name);
+        wxRemoveFile(tmp);
+      }
+    }
   }
 
   if (g_failures > 0) {
