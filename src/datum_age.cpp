@@ -107,6 +107,15 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
   result.elapsed = now - time_of_report;
   long total_seconds = result.elapsed.GetSeconds().ToLong();
 
+  // Guard against a nonsensical report time (some wxTimePickerCtrl builds
+  // return a 1970 date): a real SAR datum is at most days old, and the
+  // straight-line drift model is meaningless past that anyway.
+  constexpr long kMaxElapsedSeconds = 30L * 24 * 3600;
+  if (total_seconds > kMaxElapsedSeconds) {
+    total_seconds = kMaxElapsedSeconds;
+    result.elapsed = wxTimeSpan::Seconds(kMaxElapsedSeconds);
+  }
+
   if (!grib && !manual.available) {
     return result;  // Zero drift: aged datum equals reported position.
   }

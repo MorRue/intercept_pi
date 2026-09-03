@@ -75,10 +75,14 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_position_ctrl->SetHint(_("e.g. 45 30.5 N, 015 20.3 E"));
   in->Add(m_position_ctrl, 1, wxEXPAND);
 
-  in->Add(new wxStaticText(panel, wxID_ANY, _("Time of report:")), 0,
+  in->Add(new wxStaticText(panel, wxID_ANY, _("Time of report (local):")), 0,
           wxALIGN_CENTER_VERTICAL);
+  auto* when_row = new wxBoxSizer(wxHORIZONTAL);
+  m_date_ctrl = new wxDatePickerCtrl(panel, wxID_ANY, wxDateTime::Now());
   m_time_ctrl = new wxTimePickerCtrl(panel, wxID_ANY, wxDateTime::Now());
-  in->Add(m_time_ctrl, 0);
+  when_row->Add(m_date_ctrl, 0);
+  when_row->Add(m_time_ctrl, 0, wxLEFT, 6);
+  in->Add(when_row, 0);
 
   in->Add(new wxStaticText(panel, wxID_ANY, _("Craft type:")), 0,
           wxALIGN_CENTER_VERTICAL);
@@ -141,8 +145,9 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
 
   // -- outputs --
   auto* out = new wxFlexGridSizer(0, 2, 4, 12);
-  m_out_datum = AddRow(panel, out, _("Datum:"));
-  m_out_drift = AddRow(panel, out, _("Target drift:"));
+  m_out_datum = AddRow(panel, out, _("Datum (intercept point):"));
+  m_out_drift = AddRow(panel, out, _("Drift applied:"));
+  m_out_moved = AddRow(panel, out, _("Target moved from report:"));
   m_out_elapsed = AddRow(panel, out, _("Elapsed since report:"));
   m_out_bearing = AddRow(panel, out, _("Bearing to steer:"));
   m_out_distance = AddRow(panel, out, _("Distance:"));
@@ -193,7 +198,15 @@ void InterceptPanel::OnRecalculate(wxCommandEvent& WXUNUSED(event)) {
     own = m_plugin ? m_plugin->LiveFix() : std::nullopt;
   }
 
-  c.time_of_report = m_time_ctrl->GetValue();
+  // Combine the date picker's date with the time picker's hour/minute --
+  // a time-only value defaults its date inconsistently across platforms
+  // (sometimes 1970), which then makes "elapsed since report" nonsense.
+  wxDateTime when = m_date_ctrl->GetValue();
+  wxDateTime tod = m_time_ctrl->GetValue();
+  when.SetHour(tod.GetHour());
+  when.SetMinute(tod.GetMinute());
+  when.SetSecond(0);
+  c.time_of_report = when;
   c.craft_type = m_craft_choice->GetStringSelection();
   c.pob = m_pob_ctrl->GetValue();
   c.grib_file_path = m_grib_path_ctrl->GetValue();
@@ -224,6 +237,15 @@ void InterceptPanel::ShowOutputs(const Case& c,
   } else {
     m_out_drift->SetLabel(_("none (datum = reported position)"));
   }
+
+  InterceptResult moved =
+      CourseToSteer(c.lat, c.lon, c.aged_lat, c.aged_lon, 0.0);
+  m_out_moved->SetLabel(
+      moved.distance_nm < 0.05
+          ? wxString(_("-- (datum = reported position)"))
+          : wxString::Format(_("%s NM toward %s deg"),
+                             Wx(FormatDistanceNm(moved.distance_nm)),
+                             Wx(FormatBearingDeg(moved.bearing_deg))));
 
   m_out_elapsed->SetLabel(
       c.elapsed.IsNull()
