@@ -128,7 +128,8 @@ public:
   /** Store the case and (re)draw the chart objects. show_target toggles the
    *  "Target" mark at the reported position; show_estimated toggles the
    *  "Estimated position" mark at the drifted-forward datum; show_lines
-   *  toggles the drift track and the course-to-steer route. */
+   *  toggles the drift track, the course-to-steer route and the "Intercept"
+   *  mark at the route's far end. */
   void ApplyCase(const Case& c, const std::optional<OwnShipState>& own,
                  bool show_target, bool show_estimated, bool show_lines);
   /** The panel was closed by its own [x] -- clear the toolbar toggle. */
@@ -136,11 +137,12 @@ public:
 
 private:
   /**
-   * (Re)places the four chart objects for the current case, each on a fixed
-   * GUID (delete-before-add): "Target" mark at the reported position,
-   * "Estimated position" mark at the aged datum, "Target drift" track between
-   * them, and (if own-ship is known) the "Course to steer" route. Each of the
-   * three show_* flags suppresses its object (deleting any stale copy).
+   * (Re)places the chart objects for the current case, each on a fixed GUID
+   * (delete-before-add): "Target" mark at the reported position, "Estimated
+   * position" mark at the aged datum, "Target drift" track between them, and
+   * (if own-ship is known) the "Course to steer" route with an "Intercept"
+   * mark at its far end. Each show_* flag suppresses its object(s), deleting
+   * any stale copy.
    */
   void UpdateChartObjects(const Case& c,
                           const std::optional<OwnShipState>& own,
