@@ -188,14 +188,16 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      **non-modal `wxFrame`** (float-on-parent, tool window) toggled by the
      toolbar button. OpenCPN stays fully interactive while it's open; the
      `[x]` hides it (state kept), `DeInit` destroys it. It holds **both** the
-     inputs — reported position and time of report (each with a **lock
-     checkbox** so they can't be fat-fingered once entered), craft type
-     (defaults to "Unknown"), optional POB, GRIB, **Target drift set/rate**
-     (hand-entered set & drift → `ComputeAgedDatum`'s `ManualSetAndDrift`,
-     used only when no GRIB; the GRIB row has **Browse…** and **Clear**), and
-     an **Own ship (manual)** checkbox — off by default (use the live
-     `SetPositionFix`), on to enter position/speed by hand — plus two
-     **display checkboxes** ("Show reported position", "Show routes", both on)
+     inputs — reported position, time of report, own-ship position and
+     own-ship speed, **each with a "lock" checkbox to its right**. Every lock
+     box behaves identically: **checked ⇒ the field is disabled**. Reported
+     position and time start unlocked; own-ship position and speed start
+     locked (so the live `SetPositionFix` is used) and are unlocked
+     independently to hand-enter one without the other. Also craft type
+     (defaults to "Unknown"), optional POB, GRIB (row has **Browse…** and
+     **Clear**), **Target drift set/rate** (hand-entered set & drift →
+     `ComputeAgedDatum`'s `ManualSetAndDrift`, used only when no GRIB), plus
+     two **display checkboxes** ("Show reported position", "Show routes", both on)
      that hide/show the chart objects live — and the **outputs** — datum,
      drift source, "target moved from report", elapsed, bearing/distance/ETA.
      **[Recalculate]** re-runs `FinalizeDatum()` + `CourseToSteer()`, updates
