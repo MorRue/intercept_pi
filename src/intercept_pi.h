@@ -23,6 +23,7 @@
 #include "ocpn_plugin.h"
 
 class InterceptPanel;
+struct OwnShipState;
 
 /** Let OpenCPN choose where the toolbar button lands. */
 #define INTERCEPT_TOOL_POSITION -1
@@ -51,12 +52,32 @@ struct Case {
   double aged_lon = 0.0;
   wxTimeSpan elapsed;
 
+  // Set by SolveIntercept(): the moving-target intercept -- where own-ship
+  // meets the target if the target keeps drifting during the transit. When
+  // intercept_solved is false (no own-ship speed, or the target outpaces
+  // own-ship) steer at (aged_lat, aged_lon) instead.
+  bool intercept_solved = false;
+  double intercept_lat = 0.0;
+  double intercept_lon = 0.0;
+  double intercept_bearing_deg = 0.0;
+  double intercept_distance_nm = 0.0;  // Own-ship track length to the meeting.
+  double intercept_eta_hours = 0.0;
+
   /**
    * Ages (lat, lon) forward to now using GribReader on grib_file_path when
    * one is set, otherwise zero drift, and stores the result in aged_lat/
    * aged_lon/elapsed. Call once the rest of the case is populated.
    */
   void FinalizeDatum();
+
+  /**
+   * Solves the moving-target intercept from own-ship: own-ship steers a
+   * straight course at own.sog_kt while the target keeps drifting (same
+   * environmental model as FinalizeDatum, extrapolated forward). Fills the
+   * intercept_* fields. Call after FinalizeDatum(). With own.sog_kt <= 0 or
+   * no reachable solution, leaves intercept_solved false.
+   */
+  void SolveIntercept(const OwnShipState& own);
 };
 
 /**
