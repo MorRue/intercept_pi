@@ -21,8 +21,9 @@
 /**
  * A non-modal tool window that stays open on top of OpenCPN while the chart
  * remains fully interactive. It carries both the case inputs (position, time,
- * craft, POB, GRIB, target drift, own-ship override) and the computed outputs
- * (datum, drift source, elapsed, bearing/distance/ETA). [Recalculate] re-runs
+ * craft, POB, GRIB, target drift, own-ship position/speed) and the computed
+ * outputs (datum, drift source, elapsed, bearing/distance/ETA). [Recalculate]
+ * re-runs
  * the datum ageing and course-to-steer and refreshes the chart mark + route;
  * closing it with the [x] just hides it (state is kept) and clears the
  * toolbar toggle -- the plugin destroys it in DeInit().
@@ -36,8 +37,8 @@ private:
   void OnBrowseGrib(wxCommandEvent& event);
   void OnClearGrib(wxCommandEvent& event);
   void OnClose(wxCloseEvent& event);
+  // Every "lock" checkbox works the same way: checked disables its field(s).
   void OnLockToggled(wxCommandEvent& event);
-  void OnManualOwnToggled(wxCommandEvent& event);
   // Re-applies the last computed case with the current show/hide checkboxes so
   // the chart redraws immediately, without a full recalculation.
   void OnDisplayToggled(wxCommandEvent& event);
@@ -49,9 +50,15 @@ private:
   intercept_pi* m_plugin;
   wxPanel* m_content;
 
+  // "lock" checkboxes, one per input, sitting to the right of the field. All
+  // identical in behaviour: checked => the field is disabled. The reported
+  // position and time start unlocked (you type them in each time); the
+  // own-ship fields start locked, so by default the live GPS fix is used and
+  // you unlock only the one(s) you want to enter by hand.
   wxCheckBox* m_lock_position;
   wxCheckBox* m_lock_time;
-  wxCheckBox* m_use_manual_own;
+  wxCheckBox* m_lock_own_pos;
+  wxCheckBox* m_lock_own_sog;
   wxCheckBox* m_show_target;  // Draw the "Target" mark at the reported position.
   wxCheckBox* m_show_routes;  // Draw the drift track and course-to-steer route.
 

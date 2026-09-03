@@ -72,35 +72,39 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   auto* in = new wxFlexGridSizer(0, 2, 6, 8);
   in->AddGrowableCol(1);
 
-  // Left cell: an optional lock/enable checkbox, then the label.
-  auto label_with_check = [&](wxCheckBox* cb, const wxString& text) {
-    auto* s = new wxBoxSizer(wxHORIZONTAL);
-    s->Add(cb, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
-    s->Add(new wxStaticText(panel, wxID_ANY, text), 0, wxALIGN_CENTER_VERTICAL);
-    return s;
-  };
   auto plain = [&](const wxString& text) {
     return new wxStaticText(panel, wxID_ANY, text);
   };
+  // Right cell: the field, then a "lock" checkbox on its right. Every lock
+  // checkbox behaves identically -- checked disables the field.
+  auto with_lock = [&](wxSizer* field, wxCheckBox** out_cb) {
+    auto* s = new wxBoxSizer(wxHORIZONTAL);
+    s->Add(field, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
+    auto* cb = new wxCheckBox(panel, wxID_ANY, _("lock"));
+    cb->SetToolTip(_("Checked: the field is disabled so it can't be changed"));
+    s->Add(cb, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+    *out_cb = cb;
+    return s;
+  };
 
-  m_lock_position = new wxCheckBox(panel, wxID_ANY, wxEmptyString);
-  m_lock_position->SetToolTip(_("Lock so it can't be changed by accident"));
-  in->Add(label_with_check(m_lock_position, _("Reported position:")), 0,
-          wxALIGN_CENTER_VERTICAL);
+  in->Add(plain(_("Reported position:")), 0, wxALIGN_CENTER_VERTICAL);
   m_position_ctrl = new wxTextCtrl(panel, wxID_ANY);
   m_position_ctrl->SetHint(_("e.g. 45 30.5 N, 015 20.3 E"));
-  in->Add(m_position_ctrl, 1, wxEXPAND);
+  {
+    auto* f = new wxBoxSizer(wxHORIZONTAL);
+    f->Add(m_position_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
+    in->Add(with_lock(f, &m_lock_position), 1, wxEXPAND);
+  }
 
-  m_lock_time = new wxCheckBox(panel, wxID_ANY, wxEmptyString);
-  m_lock_time->SetToolTip(_("Lock so it can't be changed by accident"));
-  in->Add(label_with_check(m_lock_time, _("Time of report (local):")), 0,
-          wxALIGN_CENTER_VERTICAL);
-  auto* when_row = new wxBoxSizer(wxHORIZONTAL);
+  in->Add(plain(_("Time of report (local):")), 0, wxALIGN_CENTER_VERTICAL);
   m_date_ctrl = new wxDatePickerCtrl(panel, wxID_ANY, wxDateTime::Now());
   m_time_ctrl = new wxTimePickerCtrl(panel, wxID_ANY, wxDateTime::Now());
-  when_row->Add(m_date_ctrl, 0);
-  when_row->Add(m_time_ctrl, 0, wxLEFT, 6);
-  in->Add(when_row, 0);
+  {
+    auto* f = new wxBoxSizer(wxHORIZONTAL);
+    f->Add(m_date_ctrl, 0, wxALIGN_CENTER_VERTICAL);
+    f->Add(m_time_ctrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+    in->Add(with_lock(f, &m_lock_time), 1, wxEXPAND);
+  }
 
   in->Add(plain(_("Craft type:")), 0, wxALIGN_CENTER_VERTICAL);
   m_craft_choice = new wxChoice(panel, wxID_ANY);
@@ -140,22 +144,31 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
                                       wxSP_ARROW_KEYS, 0.0, 20.0, 0.0, 0.1);
   in->Add(m_drift_ctrl, 0);
 
-  m_use_manual_own = new wxCheckBox(panel, wxID_ANY, wxEmptyString);
-  m_use_manual_own->SetToolTip(
-      _("Off: use OpenCPN's GPS fix. On: enter own-ship position and speed."));
-  in->Add(label_with_check(m_use_manual_own, _("Own ship (manual):")), 0,
-          wxALIGN_CENTER_VERTICAL);
+  in->Add(plain(_("Own ship position:")), 0, wxALIGN_CENTER_VERTICAL);
   m_own_pos_ctrl = new wxTextCtrl(panel, wxID_ANY);
   m_own_pos_ctrl->SetHint(_("e.g. 45 10 N, 015 05 E"));
-  m_own_pos_ctrl->Enable(false);
-  in->Add(m_own_pos_ctrl, 1, wxEXPAND);
+  {
+    auto* f = new wxBoxSizer(wxHORIZONTAL);
+    f->Add(m_own_pos_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
+    in->Add(with_lock(f, &m_lock_own_pos), 1, wxEXPAND);
+  }
 
   in->Add(plain(_("Own ship speed (kt):")), 0, wxALIGN_CENTER_VERTICAL);
   m_own_sog_ctrl = new wxSpinCtrlDouble(panel, wxID_ANY, wxEmptyString,
                                         wxDefaultPosition, wxDefaultSize,
                                         wxSP_ARROW_KEYS, 0.0, 99.0, 0.0, 0.1);
+  {
+    auto* f = new wxBoxSizer(wxHORIZONTAL);
+    f->Add(m_own_sog_ctrl, 0, wxALIGN_CENTER_VERTICAL);
+    in->Add(with_lock(f, &m_lock_own_sog), 1, wxEXPAND);
+  }
+
+  // Own-ship position and speed start locked: use the live GPS fix by default,
+  // unlock the one(s) you want to enter by hand.
+  m_lock_own_pos->SetValue(true);
+  m_lock_own_sog->SetValue(true);
+  m_own_pos_ctrl->Enable(false);
   m_own_sog_ctrl->Enable(false);
-  in->Add(m_own_sog_ctrl, 0);
 
   outer->Add(in, 0, wxEXPAND | wxALL, 10);
 
@@ -197,26 +210,29 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   Bind(wxEVT_CLOSE_WINDOW, &InterceptPanel::OnClose, this);
   m_lock_position->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
   m_lock_time->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
-  m_use_manual_own->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnManualOwnToggled,
-                         this);
+  m_lock_own_pos->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
+  m_lock_own_sog->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
 }
 
 void InterceptPanel::OnLockToggled(wxCommandEvent& WXUNUSED(event)) {
   m_position_ctrl->Enable(!m_lock_position->IsChecked());
   m_date_ctrl->Enable(!m_lock_time->IsChecked());
   m_time_ctrl->Enable(!m_lock_time->IsChecked());
-}
 
-void InterceptPanel::OnManualOwnToggled(wxCommandEvent& WXUNUSED(event)) {
-  const bool manual = m_use_manual_own->IsChecked();
-  m_own_pos_ctrl->Enable(manual);
-  m_own_sog_ctrl->Enable(manual);
-  if (manual && m_own_pos_ctrl->IsEmpty()) {
-    // Seed from the live fix so the operator tweaks rather than retypes.
-    if (auto fix = m_plugin ? m_plugin->LiveFix() : std::nullopt) {
+  const bool own_pos_manual = !m_lock_own_pos->IsChecked();
+  const bool own_sog_manual = !m_lock_own_sog->IsChecked();
+  m_own_pos_ctrl->Enable(own_pos_manual);
+  m_own_sog_ctrl->Enable(own_sog_manual);
+
+  // Seed a just-unlocked, still-empty own-ship field from the live fix so the
+  // operator adjusts a value rather than typing one from scratch.
+  if (auto fix = m_plugin ? m_plugin->LiveFix() : std::nullopt) {
+    if (own_pos_manual && m_own_pos_ctrl->IsEmpty()) {
       m_own_pos_ctrl->SetValue(wxString::Format(
           "%.5f %c, %.5f %c", std::fabs(fix->lat), fix->lat >= 0 ? 'N' : 'S',
           std::fabs(fix->lon), fix->lon >= 0 ? 'E' : 'W'));
+    }
+    if (own_sog_manual && m_own_sog_ctrl->GetValue() == 0.0) {
       m_own_sog_ctrl->SetValue(fix->sog_kt);
     }
   }
@@ -258,16 +274,35 @@ void InterceptPanel::OnRecalculate(wxCommandEvent& WXUNUSED(event)) {
     return;
   }
 
+  // Own-ship position and speed are independent: each comes from its field
+  // when unlocked, otherwise from the live GPS fix. A hand-entered position
+  // at GPS speed (or vice versa) is fine.
   std::optional<OwnShipState> own;
-  if (m_use_manual_own->IsChecked()) {
-    double olat, olon;
-    if (!ParsePos(m_own_pos_ctrl->GetValue(), this, _("Own-ship position"),
-                  &olat, &olon)) {
-      return;
+  {
+    std::optional<OwnShipState> fix =
+        m_plugin ? m_plugin->LiveFix() : std::nullopt;
+    bool have_pos = false;
+    double olat = 0.0, olon = 0.0, osog = 0.0;
+
+    if (!m_lock_own_pos->IsChecked()) {
+      if (!ParsePos(m_own_pos_ctrl->GetValue(), this, _("Own-ship position"),
+                    &olat, &olon)) {
+        return;
+      }
+      have_pos = true;
+    } else if (fix) {
+      olat = fix->lat;
+      olon = fix->lon;
+      have_pos = true;
     }
-    own = OwnShipState{olat, olon, m_own_sog_ctrl->GetValue()};
-  } else {
-    own = m_plugin ? m_plugin->LiveFix() : std::nullopt;
+
+    if (!m_lock_own_sog->IsChecked()) {
+      osog = m_own_sog_ctrl->GetValue();
+    } else if (fix) {
+      osog = fix->sog_kt;
+    }
+
+    if (have_pos) own = OwnShipState{olat, olon, osog};
   }
 
   // Combine the date picker's date with the time picker's hour/minute --
