@@ -94,6 +94,23 @@ if (wxWidgets_FOUND)
   add_executable(test_intercept test/test_intercept.cpp src/intercept.cpp)
   target_include_directories(test_intercept PRIVATE src)
   add_test(NAME intercept_test COMMAND test_intercept)
+
+  # -------- Standalone formatter test --------
+  #
+  # Same rationale as test_intercept above: format.h is plain C++ over
+  # doubles and std::string, no wxWidgets dependency.
+  add_executable(test_format test/test_format.cpp src/format.cpp)
+  target_include_directories(test_format PRIVATE src)
+  add_test(NAME format_test COMMAND test_format)
+
+  # -------- Standalone waypoint-list-builder test --------
+  #
+  # Same rationale again: route_helper.h returns a plain GeoPoint list, no
+  # wxWidgets dependency.
+  add_executable(test_route_helper test/test_route_helper.cpp
+                 src/route_helper.cpp)
+  target_include_directories(test_route_helper PRIVATE src)
+  add_test(NAME route_helper_test COMMAND test_route_helper)
 else ()
   message(WARNING
           "wxWidgets (base) not found; skipping test_grib_reader, "
