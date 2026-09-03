@@ -45,9 +45,10 @@ set(PLUGIN_API_NAME Intercept) # As of GetCommonName() in plugin API
 set(PKG_SUMMARY "Course to steer onto a reported position")
 set(PKG_DESCRIPTION [=[
 Computes the course to steer to reach a reported position, including the
-case where that position is itself moving. Intended for closing a vessel
-in distress: enter the reported position and time, and the plugin gives
-bearing, distance and estimated time of arrival from own ship.
+case where that position is itself drifting with wind and current. Enter
+the reported position and time, optionally a GRIB file or a drift set and
+rate, and the plugin gives the bearing, distance and estimated time of
+arrival from own ship, and draws the course on the chart.
 ]=])
 
 set(PKG_AUTHOR "momo")
@@ -59,14 +60,18 @@ set(SRC
     src/portability.h
     src/intercept_pi.h
     src/intercept_pi.cpp
-    src/case_dialog.h
-    src/case_dialog.cpp
+    src/intercept_panel.h
+    src/intercept_panel.cpp
     src/grib_reader.h
     src/grib_reader.cpp
     src/datum_age.h
     src/datum_age.cpp
     src/intercept.h
     src/intercept.cpp
+    src/format.h
+    src/format.cpp
+    src/route_helper.h
+    src/route_helper.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )
