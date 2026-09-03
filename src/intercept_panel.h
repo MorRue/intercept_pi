@@ -12,7 +12,6 @@
 #ifndef WX_PRECOMP
 #include <wx/wx.h>
 #endif
-#include <wx/collpane.h>
 #include <wx/datectrl.h>
 #include <wx/spinctrl.h>
 #include <wx/timectrl.h>
@@ -21,13 +20,12 @@
 
 /**
  * A non-modal tool window that stays open on top of OpenCPN while the chart
- * remains fully interactive. It carries both the case inputs (position, time,
- * craft, POB, GRIB, target drift, own-ship position/speed) and the computed
- * outputs (datum, drift source, elapsed, bearing/distance/ETA). [Recalculate]
- * re-runs
- * the datum ageing and course-to-steer and refreshes the chart mark + route;
- * closing it with the [x] just hides it (state is kept) and clears the
- * toolbar toggle -- the plugin destroys it in DeInit().
+ * remains fully interactive. Inputs are in titled group boxes -- own ship,
+ * target drift, environment (GRIB) + craft, report -- followed by the
+ * computed outputs (datum, drift source, elapsed, bearing/distance/ETA).
+ * [Recalculate] re-runs the datum ageing and course-to-steer and refreshes
+ * the chart marks + route; closing it with the [x] just hides it (state is
+ * kept) and clears the toolbar toggle -- the plugin destroys it in DeInit().
  */
 class InterceptPanel : public wxFrame {
 public:
@@ -37,14 +35,10 @@ private:
   void OnRecalculate(wxCommandEvent& event);
   void OnBrowseGrib(wxCommandEvent& event);
   void OnClearGrib(wxCommandEvent& event);
-  void OnGribPaneChanged(wxCollapsiblePaneEvent& event);
   void OnClose(wxCloseEvent& event);
 
-  // Disables the manual "Target drift" fields while a GRIB file is set, and
-  // keeps the GRIB group expanded so its Clear button stays reachable.
+  // Disables the manual "Target drift" fields while a GRIB file is set.
   void UpdateGribLock();
-  // Re-flows the panel and frame after the collapsible group changes size.
-  void RelayoutForPane();
   // Every "lock" checkbox works the same way: checked disables its field(s).
   void OnLockToggled(wxCommandEvent& event);
   // Re-applies the last computed case with the current show/hide checkboxes so
@@ -70,8 +64,6 @@ private:
   wxCheckBox* m_show_target;     // "Target" mark at the reported position.
   wxCheckBox* m_show_estimated;  // "Estimated position" mark at the datum.
   wxCheckBox* m_show_routes;     // Drift track + course-to-steer route.
-
-  wxCollapsiblePane* m_grib_pane;  // GRIB file + craft type + POB.
 
   wxTextCtrl* m_position_ctrl;
   wxDatePickerCtrl* m_date_ctrl;
