@@ -121,6 +121,9 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   grib_row->Add(m_grib_path_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
   auto* browse = new wxButton(panel, wxID_ANY, _("Browse..."));
   grib_row->Add(browse, 0, wxLEFT, 6);
+  auto* clear_grib = new wxButton(panel, wxID_ANY, _("Clear"));
+  clear_grib->SetToolTip(_("Remove the GRIB file; fall back to no environment"));
+  grib_row->Add(clear_grib, 0, wxLEFT, 6);
   in->Add(grib_row, 1, wxEXPAND);
 
   in->Add(plain(_("Target drift set (deg true):")), 0,
@@ -156,6 +159,15 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
 
   outer->Add(in, 0, wxEXPAND | wxALL, 10);
 
+  auto* disp_row = new wxBoxSizer(wxHORIZONTAL);
+  m_show_target = new wxCheckBox(panel, wxID_ANY, _("Show reported position"));
+  m_show_target->SetValue(true);
+  m_show_routes = new wxCheckBox(panel, wxID_ANY, _("Show routes"));
+  m_show_routes->SetValue(true);
+  disp_row->Add(m_show_target, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+  disp_row->Add(m_show_routes, 0, wxALIGN_CENTER_VERTICAL);
+  outer->Add(disp_row, 0, wxLEFT | wxRIGHT | wxBOTTOM, 10);
+
   auto* recalc = new wxButton(panel, wxID_ANY, _("Recalculate"));
   outer->Add(recalc, 0, wxALIGN_RIGHT | wxRIGHT | wxBOTTOM, 10);
 
@@ -179,6 +191,9 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
 
   recalc->Bind(wxEVT_BUTTON, &InterceptPanel::OnRecalculate, this);
   browse->Bind(wxEVT_BUTTON, &InterceptPanel::OnBrowseGrib, this);
+  clear_grib->Bind(wxEVT_BUTTON, &InterceptPanel::OnClearGrib, this);
+  m_show_target->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
+  m_show_routes->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   Bind(wxEVT_CLOSE_WINDOW, &InterceptPanel::OnClose, this);
   m_lock_position->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
   m_lock_time->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
@@ -213,6 +228,19 @@ void InterceptPanel::OnBrowseGrib(wxCommandEvent& WXUNUSED(event)) {
                     "All files (*.*)|*.*"),
                   wxFD_OPEN | wxFD_FILE_MUST_EXIST);
   if (fd.ShowModal() == wxID_OK) m_grib_path_ctrl->SetValue(fd.GetPath());
+}
+
+void InterceptPanel::OnClearGrib(wxCommandEvent& WXUNUSED(event)) {
+  m_grib_path_ctrl->Clear();
+}
+
+void InterceptPanel::OnDisplayToggled(wxCommandEvent& WXUNUSED(event)) {
+  // Redraw from the last computed case; nothing to do before the first
+  // recalculation.
+  if (m_last_case && m_plugin) {
+    m_plugin->ApplyCase(*m_last_case, m_last_own, m_show_target->IsChecked(),
+                        m_show_routes->IsChecked());
+  }
 }
 
 void InterceptPanel::OnClose(wxCloseEvent& event) {
@@ -260,8 +288,12 @@ void InterceptPanel::OnRecalculate(wxCommandEvent& WXUNUSED(event)) {
   c.manual_set_deg = m_set_ctrl->GetValue();
   c.FinalizeDatum();
 
+  m_last_case = c;
+  m_last_own = own;
   ShowOutputs(c, own);
-  if (m_plugin) m_plugin->ApplyCase(c, own);
+  if (m_plugin)
+    m_plugin->ApplyCase(c, own, m_show_target->IsChecked(),
+                        m_show_routes->IsChecked());
   m_content->Layout();
   Fit();  // outputs may have grown/shrunk the panel's best size
 }
