@@ -79,12 +79,12 @@ if (wxWidgets_FOUND)
   # Same rationale as test_datum_age above; builds its own synthetic GRIB2
   # fixture in memory rather than reading one from test/data, so it takes
   # no data-directory argument.
-  add_executable(test_reference_iamsar test/test_reference_iamsar.cpp
+  add_executable(test_reference_leeway test/test_reference_leeway.cpp
                  src/datum_age.cpp src/grib_reader.cpp)
-  target_include_directories(test_reference_iamsar PRIVATE src)
-  target_compile_definitions(test_reference_iamsar PRIVATE wxUSE_GUI=0)
-  target_link_libraries(test_reference_iamsar ${wxWidgets_LIBRARIES})
-  add_test(NAME reference_iamsar_test COMMAND test_reference_iamsar)
+  target_include_directories(test_reference_leeway PRIVATE src)
+  target_compile_definitions(test_reference_leeway PRIVATE wxUSE_GUI=0)
+  target_link_libraries(test_reference_leeway ${wxWidgets_LIBRARIES})
+  add_test(NAME reference_leeway_test COMMAND test_reference_leeway)
 
   # -------- Standalone course-to-steer test --------
   #
@@ -114,7 +114,7 @@ if (wxWidgets_FOUND)
 else ()
   message(WARNING
           "wxWidgets (base) not found; skipping test_grib_reader, "
-          "test_datum_age, and test_reference_iamsar")
+          "test_datum_age, and test_reference_leeway")
 endif ()
 
 add_subdirectory("opencpn-libs/${PKG_API_LIB}")
