@@ -164,7 +164,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
                                     wxSP_ARROW_KEYS, 0.0, 359.9, 0.0, 1.0);
   in_bot->Add(m_set_ctrl, 0);
 
-  in_bot->Add(plain(panel, _("Target drift rate (kt, 0 = none):")), 0,
+  in_bot->Add(plain(panel, _("Target drift rate (kt):")), 0,
               wxALIGN_CENTER_VERTICAL);
   m_drift_ctrl = new wxSpinCtrlDouble(panel, wxID_ANY, wxEmptyString,
                                       wxDefaultPosition, wxDefaultSize,
