@@ -92,6 +92,18 @@ int main() {
     Check(!r.eta.has_value(), "negative SOG: eta absent");
   }
 
+  // (8) Non-finite coordinate: zeroed result rather than NaN propagation.
+  {
+    const double nan = std::nan("");
+    for (const auto& r :
+         {CourseToSteer(nan, 0.0, 1.0, 0.0, 10.0),
+          CourseToSteer(0.0, 0.0, nan, 0.0, 10.0),
+          CourseToSteer(0.0, HUGE_VAL, 1.0, 0.0, 10.0)}) {
+      Check(r.distance_nm == 0.0 && r.bearing_deg == 0.0 && !r.eta.has_value(),
+            "non-finite coordinate: zeroed result");
+    }
+  }
+
   if (g_failures > 0) {
     std::fprintf(stderr, "%d check(s) failed\n", g_failures);
     return 1;
