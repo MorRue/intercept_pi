@@ -85,8 +85,9 @@ LeewayCoefficients LookupLeewayCoefficients(const wxString& craft_type) {
   if (craft_type.Lower().Contains("wooden")) {
     return LeewayCoefficients{0.04, 0.0};
   }
-  // 0.036 is mid liferaft range per IAMSAR Vol II Fig N-2 / Allen & Plourde
-  // 1999 -- see docs/LEEWAY_NEEDS_VERIFICATION.md. (0.36 was ~10x too large.)
+  // 0.036 is mid-range for a light rubber hull per the leeway curves in
+  // IAMSAR Vol II Fig N-2 / Allen & Plourde 1999 -- see
+  // docs/LEEWAY_NEEDS_VERIFICATION.md. (0.36 was ~10x too large.)
   return LeewayCoefficients{0.036, 0.0};  // Rubber-hulled, and the default.
 }
 
@@ -108,7 +109,7 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
   long total_seconds = result.elapsed.GetSeconds().ToLong();
 
   // Guard against a nonsensical report time (some wxTimePickerCtrl builds
-  // return a 1970 date): a real SAR datum is at most days old, and the
+  // return a 1970 date): a useful datum is at most days old, and the
   // straight-line drift model is meaningless past that anyway.
   constexpr long kMaxElapsedSeconds = 30L * 24 * 3600;
   if (total_seconds > kMaxElapsedSeconds) {

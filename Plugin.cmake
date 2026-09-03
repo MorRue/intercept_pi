@@ -45,9 +45,10 @@ set(PLUGIN_API_NAME Intercept) # As of GetCommonName() in plugin API
 set(PKG_SUMMARY "Course to steer onto a reported position")
 set(PKG_DESCRIPTION [=[
 Computes the course to steer to reach a reported position, including the
-case where that position is itself moving. Intended for closing a vessel
-in distress: enter the reported position and time, and the plugin gives
-bearing, distance and estimated time of arrival from own ship.
+case where that position is itself drifting with wind and current. Enter
+the reported position and time, optionally a GRIB file or a drift set and
+rate, and the plugin gives the bearing, distance and estimated time of
+arrival from own ship, and draws the course on the chart.
 ]=])
 
 set(PKG_AUTHOR "momo")
