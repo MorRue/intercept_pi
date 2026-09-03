@@ -79,6 +79,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   wxFlexGridSizer* g = nullptr;
   wxWindow* gp = nullptr;
   std::vector<wxStaticBox*> group_boxes;
+  std::vector<wxStaticText*> sub_headers;  // Bold labels inside the drift box.
   auto begin_group = [&](const wxString& title) {
     auto* box = new wxStaticBoxSizer(wxVERTICAL, panel, title);
     gp = box->GetStaticBox();
@@ -178,9 +179,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
 
     auto subhead = [&](const wxString& text) {
       auto* st = new wxStaticText(bp, wxID_ANY, text);
-      wxFont bf = st->GetFont();
-      bf.MakeBold();
-      st->SetFont(bf);
+      sub_headers.push_back(st);
       box->Add(st, 0, wxLEFT | wxRIGHT | wxTOP, 6);
     };
     auto subgrid = [&]() {
@@ -317,12 +316,20 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   disp_row->Add(m_show_routes, 0, wxALIGN_CENTER_VERTICAL);
   outer->Add(disp_row, 0, wxALL, 10);
 
-  // Group-box titles a notch smaller than the body text, set now that every
-  // box and its children exist -- only the box labels shrink.
-  wxFont group_font = panel->GetFont();
-  if (group_font.IsOk()) {
-    group_font = group_font.Smaller();
-    for (wxStaticBox* b : group_boxes) b->SetFont(group_font);
+  // Only the group-box titles shrink; the fields inside keep the body size.
+  // Setting a font on a wxStaticBox propagates to its children, so after
+  // shrinking each box we restore every child to the normal font (and the
+  // drift sub-headers to bold).
+  wxFont normal_font = panel->GetFont();
+  if (normal_font.IsOk()) {
+    wxFont small_font = normal_font.Smaller();
+    wxFont bold_font = normal_font;
+    bold_font.MakeBold();
+    for (wxStaticBox* b : group_boxes) {
+      b->SetFont(small_font);
+      for (wxWindow* child : b->GetChildren()) child->SetFont(normal_font);
+    }
+    for (wxStaticText* h : sub_headers) h->SetFont(bold_font);
   }
 
   panel->SetSizerAndFit(outer);
