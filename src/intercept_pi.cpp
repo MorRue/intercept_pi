@@ -10,6 +10,7 @@
 #include <wx/wx.h>
 #endif
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <sstream>
@@ -43,6 +44,32 @@ const wxString kInterceptMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a001");
 const wxString kCourseRouteGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a002");
 const wxString kTargetMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a003");
 const wxString kDriftTrackGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a004");
+
+// Surface current + wind-driven leeway realistically stays well under this
+// even in a gale; a hand-typed drift_kt above it is a data-entry mistake
+// (e.g. a stray digit), not a real target drift.
+constexpr double kMaxPlausibleManualDriftKt = 20.0;
+
+/**
+ * Sanitises the operator's hand-entered set & drift before it reaches the
+ * datum-ageing integrator: a non-finite value (a stray NaN/Inf from a bad
+ * text-field parse) or a negative speed disables manual drift outright
+ * rather than feeding a bogus vector into ComputeAgedDatum, and an
+ * implausibly large speed is clamped down rather than dragging the datum
+ * far off-track.
+ */
+ManualSetAndDrift SanitizeManualDrift(bool has_manual_drift, double set_deg,
+                                      double drift_kt) {
+  ManualSetAndDrift manual;
+  if (!has_manual_drift) return manual;
+  if (!std::isfinite(drift_kt) || !std::isfinite(set_deg) || drift_kt < 0.0) {
+    return manual;  // available stays false: treat as not supplied.
+  }
+  manual.available = true;
+  manual.set_deg = set_deg;
+  manual.drift_kt = std::min(drift_kt, kMaxPlausibleManualDriftKt);
+  return manual;
+}
 
 /** Parses token as a number, requiring the whole token to be consumed. */
 bool ParseNumber(const std::string& token, double* out) {
@@ -245,10 +272,8 @@ void Case::FinalizeDatum() {
   // Hand-entered set & drift, used by ComputeAgedDatum() only when there is
   // no GRIB file. With neither, drift is zero and the datum is the reported
   // position.
-  ManualSetAndDrift manual;
-  manual.available = has_manual_drift;
-  manual.set_deg = manual_set_deg;
-  manual.drift_kt = manual_drift_kt;
+  ManualSetAndDrift manual =
+      SanitizeManualDrift(has_manual_drift, manual_set_deg, manual_drift_kt);
 
   AgedDatum aged =
       ComputeAgedDatum(lat, lon, time_of_report, wxDateTime::Now(),
