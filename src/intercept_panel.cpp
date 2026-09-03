@@ -14,6 +14,7 @@
 #include <wx/statline.h>
 
 #include <cmath>
+#include <vector>
 
 #include "intercept_panel.h"
 
@@ -78,9 +79,11 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   // the controls on.
   wxFlexGridSizer* g = nullptr;
   wxWindow* gp = nullptr;
+  std::vector<wxStaticBox*> group_boxes;
   auto begin_group = [&](const wxString& title) {
     auto* box = new wxStaticBoxSizer(wxVERTICAL, panel, title);
     gp = box->GetStaticBox();
+    group_boxes.push_back(box->GetStaticBox());
     g = new wxFlexGridSizer(0, 2, 6, 8);
     g->AddGrowableCol(1);
     box->Add(g, 1, wxEXPAND | wxALL, 6);
@@ -129,6 +132,42 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     g->Add(with_lock(gp, f, &m_lock_own_sog,
                      _("Locked: use OpenCPN's live GPS speed. "
                        "Unlocked: use the speed typed here.")),
+           1, wxEXPAND);
+  }
+
+  // --- Report ---
+  begin_group(_("Report"));
+  g->Add(plain(gp, _("Reported position:")), 0, wxALIGN_CENTER_VERTICAL);
+  m_position_ctrl = new wxTextCtrl(gp, wxID_ANY);
+  m_position_ctrl->SetHint(_("e.g. 45 30.5 N, 015 20.3 E"));
+  m_position_ctrl->SetToolTip(
+      _("The target's last known position: latitude then longitude, "
+        "separated by a comma. Accepts decimal degrees (45.51), degrees + "
+        "minutes (45 30.5 N) or degrees-minutes-seconds (45 30 30 N)."));
+  {
+    auto* f = new wxBoxSizer(wxHORIZONTAL);
+    f->Add(m_position_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
+    g->Add(with_lock(gp, f, &m_lock_position,
+                     _("Lock the reported position so a later Recalculate "
+                       "can't change it by accident.")),
+           1, wxEXPAND);
+  }
+  g->Add(plain(gp, _("Time of report (local):")), 0, wxALIGN_CENTER_VERTICAL);
+  m_date_ctrl = new wxDatePickerCtrl(gp, wxID_ANY, wxDateTime::Now());
+  m_date_ctrl->SetToolTip(
+      _("Date the position was reported, local time. With the time field it "
+        "sets how long the target has been drifting."));
+  m_time_ctrl = new wxTimePickerCtrl(gp, wxID_ANY, wxDateTime::Now());
+  m_time_ctrl->SetToolTip(
+      _("Time of day the position was reported, local 24-hour. Elapsed time "
+        "from here to now is how far the datum is aged forward."));
+  {
+    auto* f = new wxBoxSizer(wxHORIZONTAL);
+    f->Add(m_date_ctrl, 0, wxALIGN_CENTER_VERTICAL);
+    f->Add(m_time_ctrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+    g->Add(with_lock(gp, f, &m_lock_time,
+                     _("Lock the report date and time against accidental "
+                       "edits.")),
            1, wxEXPAND);
   }
 
@@ -193,40 +232,12 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
         "not affect the calculation."));
   g->Add(m_pob_ctrl, 0);
 
-  // --- Report ---
-  begin_group(_("Report"));
-  g->Add(plain(gp, _("Reported position:")), 0, wxALIGN_CENTER_VERTICAL);
-  m_position_ctrl = new wxTextCtrl(gp, wxID_ANY);
-  m_position_ctrl->SetHint(_("e.g. 45 30.5 N, 015 20.3 E"));
-  m_position_ctrl->SetToolTip(
-      _("The target's last known position: latitude then longitude, "
-        "separated by a comma. Accepts decimal degrees (45.51), degrees + "
-        "minutes (45 30.5 N) or degrees-minutes-seconds (45 30 30 N)."));
-  {
-    auto* f = new wxBoxSizer(wxHORIZONTAL);
-    f->Add(m_position_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-    g->Add(with_lock(gp, f, &m_lock_position,
-                     _("Lock the reported position so a later Recalculate "
-                       "can't change it by accident.")),
-           1, wxEXPAND);
-  }
-  g->Add(plain(gp, _("Time of report (local):")), 0, wxALIGN_CENTER_VERTICAL);
-  m_date_ctrl = new wxDatePickerCtrl(gp, wxID_ANY, wxDateTime::Now());
-  m_date_ctrl->SetToolTip(
-      _("Date the position was reported, local time. With the time field it "
-        "sets how long the target has been drifting."));
-  m_time_ctrl = new wxTimePickerCtrl(gp, wxID_ANY, wxDateTime::Now());
-  m_time_ctrl->SetToolTip(
-      _("Time of day the position was reported, local 24-hour. Elapsed time "
-        "from here to now is how far the datum is aged forward."));
-  {
-    auto* f = new wxBoxSizer(wxHORIZONTAL);
-    f->Add(m_date_ctrl, 0, wxALIGN_CENTER_VERTICAL);
-    f->Add(m_time_ctrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
-    g->Add(with_lock(gp, f, &m_lock_time,
-                     _("Lock the report date and time against accidental "
-                       "edits.")),
-           1, wxEXPAND);
+  // Group-box titles a notch smaller than the body text. Set after the
+  // children exist so only the box labels shrink, not the fields.
+  wxFont group_font = panel->GetFont();
+  if (group_font.IsOk()) {
+    group_font = group_font.Smaller();
+    for (wxStaticBox* b : group_boxes) b->SetFont(group_font);
   }
 
   // Own-ship position and speed start locked: use the live GPS fix by default,

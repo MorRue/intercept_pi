@@ -188,12 +188,14 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      **non-modal `wxFrame`** (float-on-parent, tool window) toggled by the
      toolbar button. OpenCPN stays fully interactive while it's open; the
      `[x]` hides it (state kept), `DeInit` destroys it. Inputs are in four
-     **`wxStaticBoxSizer` group boxes**, in this order: **Own ship**
-     (position, speed), **Target drift** (set, rate — hand-entered →
+     **`wxStaticBoxSizer` group boxes** (titles set a notch smaller via
+     `GetFont().Smaller()` after the children exist), in this order: **Own
+     ship** (position, speed), **Report** (reported position, time of
+     report), **Target drift** (set, rate — hand-entered →
      `ComputeAgedDatum`'s `ManualSetAndDrift`, used only when no GRIB),
      **Environment (GRIB file) + craft** (GRIB row with **Browse…** /
-     **Clear**, craft type defaulting to "Unknown", optional POB), **Report**
-     (reported position, time of report). Position/time/own-ship fields
+     **Clear**, craft type defaulting to "Unknown", optional POB).
+     Position/time/own-ship fields
      **each have a "lock" checkbox to their right** — checked ⇒ field
      disabled; own-ship pos/speed start locked (live `SetPositionFix` used),
      report fields start unlocked. `UpdateGribLock()`: while a GRIB path is
