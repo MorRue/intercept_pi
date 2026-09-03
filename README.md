@@ -1,16 +1,32 @@
 # Intercept — an OpenCPN plugin
 
-Computes the course to steer to reach a reported position.
+Computes the course to steer to reach a reported position — including the
+case where that position is itself drifting with wind and current, so the
+bearing to the last known position is not the course to steer.
 
-The case it is built for: a position is reported for a target you need to
-close, and the target keeps drifting with wind and current between the
-report and your arrival. The bearing to the last known position is then not
-the course to steer. This plugin does that arithmetic.
+Enter the reported position and time; optionally a GRIB file (for wind and
+surface current) or a hand-entered set and drift; and own-ship position and
+speed. The plugin ages the position forward to now, solves the
+moving-target intercept, and shows the course to steer, distance, and ETA,
+drawing the marks and the course line on the chart.
+
+## ⚠️ Disclaimer
+
+**This software is not verified for operational use.** The drift model has
+not been reviewed by anyone with search-and-rescue domain expertise — see
+[`docs/LEEWAY_NEEDS_VERIFICATION.md`](docs/LEEWAY_NEEDS_VERIFICATION.md).
+It is provided **without any warranty** (see [COPYING](COPYING), sections 15
+and 16). Do not rely on it for navigation or for any life-safety decision.
+
+Not affiliated with or endorsed by the IMO, ICAO, the U.S. Coast Guard, the
+OpenCPN project, or any search-and-rescue authority.
 
 ## Status
 
-Early development. Currently a working plugin skeleton: it registers a
-toolbar button and receives own-ship position fixes from OpenCPN.
+Version 0.1: a working plugin with a non-modal input/output panel, datum
+ageing (GRIB or manual drift), a moving-target intercept solve, and chart
+marks and a course-to-steer route. Not yet released through the OpenCPN
+plugin catalogue.
 
 ## Building
 
@@ -28,6 +44,9 @@ directory instead:
 
 Then restart OpenCPN and enable the plugin under Options > Plugins.
 
+Release artifacts are built in CI, never locally — a locally built `.so`
+links against your machine's libraries and may not load elsewhere.
+
 ## Platform support
 
 Linux and Windows, built in CI on every push. The Windows build is 32-bit
@@ -38,5 +57,8 @@ The plugin targets plugin API 1.18, so it loads on OpenCPN 5.8 and later.
 
 ## Licence
 
-GPLv3 or later — see [COPYING](COPYING). Derived from the OpenCPN plugin
-template by Mike Rossiter.
+GPL-3.0-or-later — see [COPYING](COPYING) / [LICENSE](LICENSE).
+
+Derived from the OpenCPN plugin template by Mike Rossiter and the OpenCPN
+developers. Bundled and referenced third-party components, and their
+licences, are listed in [THIRD-PARTY.md](THIRD-PARTY.md).

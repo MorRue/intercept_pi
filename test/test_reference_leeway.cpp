@@ -1,27 +1,35 @@
 /******************************************************************************
- * Intercept plugin for OpenCPN -- IAMSAR reference test for datum ageing.
+ * Intercept plugin for OpenCPN -- leeway / datum-ageing reference test.
  *
- * Encodes the fully worked example in IAMSAR Vol II Appendix Q ("F/V
- * SAMPLE") -- see docs/LEEWAY_NEEDS_VERIFICATION.md -- as an external-truth
- * regression test: (a) the leeway coefficient the default (non-"wooden")
- * craft_type resolves to, applied to the example's average surface wind,
- * must reproduce the example's leeway speed; (b) ComputeAgedDatum, given
- * the example's wind and current, must land near the example's datum.
+ * The drift model in src/datum_age.cpp is a percent-of-wind leeway plus the
+ * total water current, summed as vectors -- the standard SAR datum method,
+ * with leeway coefficients from Allen & Plourde 1999 ("Review of Leeway:
+ * Field Experiments and Implementation", USCG report CG-D-08-99, a US
+ * Government work in the public domain). This is an external-truth
+ * regression test against a published SAR datum worked example (a medium
+ * displacement fishing vessel; see docs/LEEWAY_NEEDS_VERIFICATION.md for
+ * the figures and their provenance):
+ *   (a) the default (non-"wooden") craft_type's leeway coefficient, applied
+ *       to the example's average surface wind (31.72 kt), must reproduce
+ *       the example's leeway speed (~1.3 kt);
+ *   (b) ComputeAgedDatum, given the example's wind and current, must land
+ *       near the example's datum.
  *
  * Part (b) checks ComputeAgedDatum against the pure-downwind vector sum of
- * IAMSAR's own figures (leeway 1.3 kt toward downwind 014T + TWC 1.86 kt
- * toward 057T over 18.75 h), which docs/LEEWAY_NEEDS_VERIFICATION.md works
- * out to a datum near 37 52.6'N 065 00.7'W. This is NOT the midpoint of
- * IAMSAR's two divergence-bounded datums (021T/2.21kt and 060T/3.15kt):
- * averaging two equal vectors +-50 deg off a centre bearing gives
- * L*cos(50deg) ~= 0.64L along it, not L, so a no-divergence sum lands
- * outside the L/R pair, to the north. (An earlier draft of the doc put the
- * expected datum at the midpoint, 37 44'N -- that was wrong.)
+ * the example's figures (leeway 1.3 kt toward downwind 014T + total water
+ * current 1.86 kt toward 057T over 18.75 h), which
+ * docs/LEEWAY_NEEDS_VERIFICATION.md works out to a datum near
+ * 37 52.6'N 065 00.7'W. This is NOT the midpoint of the example's two
+ * divergence-bounded datums (021T/2.21kt and 060T/3.15kt): averaging two
+ * equal vectors +-50 deg off a centre bearing gives L*cos(50deg) ~= 0.64L
+ * along it, not L, so a no-divergence sum lands outside the L/R pair, to
+ * the north. (An earlier draft of the doc put the expected datum at the
+ * midpoint, 37 44'N -- that was wrong.)
  *
  * Tolerance is 5 NM, not the 2 NM used for the closed-form cases in
  * test_datum_age.cpp: the code's leeway at the fixed 0.036 coefficient is
- * 0.036 * 31.72 ~= 1.14 kt, ~0.16 kt below IAMSAR's textbook 1.3 kt for
- * this craft, which alone shifts the datum ~3 NM. The check still fails by
+ * 0.036 * 31.72 ~= 1.14 kt, ~0.16 kt below the example's 1.3 kt for this
+ * craft, which alone shifts the datum ~3 NM. The check still fails by
  * ~190 NM if the coefficient regresses to the old 0.36.
  *
  * ComputeAgedDatum only reads wind and current from a GribReader, so part
@@ -223,17 +231,17 @@ int main() {
     return coeffs.speed_pct_of_wind * wind_kt + coeffs.speed_constant_kt;
   };
 
-  // (a.1) IAMSAR Vol II Appendix Q gives leeway 1.3 kt for the example's
+  // (a.1) The worked example gives leeway 1.3 kt for its
   // 31.72 kt average surface wind.
   Check(std::fabs(leeway_kt(31.72) - 1.3) <= 0.4,
-        "leeway: default coefficient x 31.72 kt is near IAMSAR's 1.3 kt");
+        "leeway: default coefficient x 31.72 kt is near the example's 1.3 kt");
 
-  // (a.2) IAMSAR Vol II Fig N-2 / Vol III p.3-18 "Liferaft leeway": across
+  // (a.2) Allen & Plourde 1999 leeway curves: across
   // raft configs (drogue / ballast / canopy) leeway spans ~2.5%-7.5% of
   // wind speed. The default single-coefficient model must land inside that
   // band at low, mid and high wind. Checking several wind speeds (not just
-  // Appendix Q's one mid-range value) confirms the slope sits in the
-  // IAMSAR range and would catch a leeway that only looks right near 30 kt.
+  // the example's one mid-range value) confirms the slope sits in the
+  // published range and would catch a leeway that only looks right near 30 kt.
   const struct {
     double wind_kt, iamsar_low_kt, iamsar_high_kt;
   } kLeewayBand[] = {
@@ -246,16 +254,16 @@ int main() {
     double lw = leeway_kt(p.wind_kt);
     char msg[128];
     std::snprintf(msg, sizeof(msg),
-                  "leeway: %.0f kt wind -> %.2f kt is in IAMSAR band [%.2f, %.2f]",
+                  "leeway: %.0f kt wind -> %.2f kt is in published band [%.2f, %.2f]",
                   p.wind_kt, lw, p.iamsar_low_kt, p.iamsar_high_kt);
     Check(lw >= p.iamsar_low_kt && lw <= p.iamsar_high_kt, msg);
   }
 
   // (b) Full datum: EIP 37 10.0'N 065 45.0'W, ASW 194T/31.72kt, TWC
   // 057T/1.86kt, 18.75 h drift interval -- expect a datum near
-  // 37 52.6'N 065 00.7'W, the pure-downwind vector sum of IAMSAR's own
+  // 37 52.6'N 065 00.7'W, the pure-downwind vector sum of the example's own
   // figures (leeway 1.3 kt toward 014T + TWC 1.86 kt toward 057T). NOT the
-  // midpoint of IAMSAR's two divergence datums; see the file header and
+  // midpoint of the example's two divergence datums; see the file header and
   // docs/LEEWAY_NEEDS_VERIFICATION.md.
   {
     const double eip_lat = 37.0 + 10.0 / 60.0;
@@ -269,7 +277,7 @@ int main() {
     const double expected_lon = -(65.0 + 0.7 / 60.0);
     // 4 NM, not the 2 NM used for the closed-form cases in
     // test_datum_age.cpp: the code's leeway at 0.036 is ~1.14 kt vs
-    // IAMSAR's textbook 1.3 kt for this craft, ~3 NM of the difference. A
+    // the example's 1.3 kt for this craft, ~3 NM of the difference. A
     // regression to 0.36 still misses by ~190 NM.
     const double tolerance_nm = 5.0;
 
@@ -354,7 +362,7 @@ int main() {
       double distance_nm =
           DistanceNm(aged.lat, aged.lon, expected_lat, expected_lon);
       Check(distance_nm <= tolerance_nm,
-            "IAMSAR Appendix Q: datum lands within 5 NM of the pure-downwind "
+            "reference example: datum lands within 5 NM of the pure-downwind "
             "expected position");
     }
 
