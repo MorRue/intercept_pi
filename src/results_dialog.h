@@ -27,12 +27,11 @@
  * satisfies "populate after OK, not at construction time": there is no
  * earlier point at which this dialog exists with stale data.
  *
- * own_fix_valid/own_sog_kt let the caller pass own-ship state
- * (intercept_pi::m_have_fix / m_own_sog) without exposing those private
- * members directly; when own_fix_valid is false or own_sog_kt <= 0 the
- * course to steer cannot be computed (no usable own-ship fix), so only the
- * datum is shown, with a message explaining why bearing/distance/ETA are
- * absent.
+ * own_fix_valid is the effective own-ship state passed by the caller (the
+ * live fix, or a hand-entered override from the case dialog). When it is
+ * false there is no own-ship position at all, so only the datum is shown.
+ * When it is true but own_sog_kt <= 0, bearing and distance are still shown
+ * and only the ETA is omitted.
  */
 class InterceptResultsDialog : public wxDialog {
 public:
