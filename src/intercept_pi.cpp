@@ -23,15 +23,13 @@
 #include "intercept_pi.h"
 #include "plug_utils.h"
 #include "results_dialog.h"
-#include "route_helper.h"
 
 namespace {
 
-// Fixed so every recompute replaces the same route (delete-by-GUID, then
-// add) instead of piling up a new one on the chart each time a case is
-// confirmed. Arbitrary but stable -- not looked up against anything else.
-const wxString kInterceptRouteGuid =
-    wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a001");
+// Fixed so every recompute replaces the same mark (delete-by-GUID, then add)
+// instead of piling up a new one on the chart each time a case is confirmed.
+// Arbitrary but stable -- not looked up against anything else.
+const wxString kDatumMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a001");
 
 /** Parses token as a number, requiring the whole token to be consumed. */
 bool ParseNumber(const std::string& token, double* out) {
@@ -267,8 +265,8 @@ int intercept_pi::Init() {
 
 bool intercept_pi::DeInit() {
   if (m_leftclick_tool_id != -1) RemovePlugInTool(m_leftclick_tool_id);
-  wxString guid = kInterceptRouteGuid;
-  DeletePlugInRoute(guid);
+  wxString guid = kDatumMarkGuid;
+  DeleteSingleWaypoint(guid);
   return true;
 }
 
@@ -304,39 +302,25 @@ void intercept_pi::OnToolbarToolCallback(int id) {
   CaseDialog dlg(m_parent_window);
   if (dlg.ShowModal() == wxID_OK) {
     m_case = dlg.GetCase();
-    UpdateInterceptRoute(*m_case);
+    UpdateDatumMark(*m_case);
     InterceptResultsDialog results(m_parent_window, *m_case, m_have_fix,
                                     m_own_lat, m_own_lon, m_own_sog);
     results.ShowModal();
   }
 }
 
-void intercept_pi::UpdateInterceptRoute(const Case& c) {
+void intercept_pi::UpdateDatumMark(const Case& c) {
   // Delete-before-add on the fixed GUID: safe to call even when nothing is
   // currently registered under it (e.g. the very first case).
-  wxString guid = kInterceptRouteGuid;
-  DeletePlugInRoute(guid);
+  wxString guid = kDatumMarkGuid;
+  DeleteSingleWaypoint(guid);
 
-  // No own-ship position means there is nothing to draw the course line
-  // from -- leave the stale previous route deleted rather than add a
-  // bogus one starting at (0, 0).
-  if (!m_have_fix) return;
-
-  std::vector<GeoPoint> points =
-      BuildInterceptWaypoints(m_own_lat, m_own_lon, c.aged_lat, c.aged_lon);
-
-  auto* route = new PlugIn_Route();
-  route->m_NameString = _("Intercept course");
-  route->m_StartString = _("Own ship");
-  route->m_EndString = _("Datum");
-  route->m_GUID = kInterceptRouteGuid;
-  route->pWaypointList = new Plugin_WaypointList();
-  route->pWaypointList->Append(new PlugIn_Waypoint(
-      points[0].lat, points[0].lon, wxT("circle"), _("Own ship")));
-  route->pWaypointList->Append(new PlugIn_Waypoint(
-      points[1].lat, points[1].lon, wxT("circle"), _("Datum")));
-
-  // Ordinary activatable route (not a track or a ghost route), so the
-  // navigator can select and steer it like any other route.
-  AddPlugInRoute(route, /*b_permanent=*/true);
+  // v0.1 shows the datum as a single chart mark. The course *line* from
+  // own-ship to it (a PlugIn_Route, or a RenderOverlay draw) is Next #2b/#4
+  // in CLAUDE.md -- route_helper.h's BuildInterceptWaypoints is staged for
+  // it. PlugIn_Route was tried first here but pulls in an unexported
+  // Plugin_WaypointList node symbol that fails to link on the MSVC target.
+  PlugIn_Waypoint mark(c.aged_lat, c.aged_lon, wxT("circle"), _("Datum"),
+                       kDatumMarkGuid);
+  AddSingleWaypoint(&mark, /*b_permanent=*/true);
 }
