@@ -2,10 +2,10 @@
 
 Computes the course to steer to reach a reported position.
 
-The case it is built for: a position is reported for a vessel in distress,
-and you need to close it. The bearing to the last known position is not
-generally the course to steer, because the target drifts between the report
-and your arrival. This plugin does that arithmetic.
+The case it is built for: a position is reported for a target you need to
+close, and the target keeps drifting with wind and current between the
+report and your arrival. The bearing to the last known position is then not
+the course to steer. This plugin does that arithmetic.
 
 ## Status
 

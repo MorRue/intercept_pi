@@ -1,8 +1,8 @@
 /******************************************************************************
  * Intercept plugin for OpenCPN
  *
- * Computes a course to steer onto a reported position, for use when closing
- * a vessel in distress.
+ * Computes a course to steer onto a reported position, including the case
+ * where that position is itself drifting with wind and current.
  *
  * Copyright (C) 2026 momo
  * License: GPLv3+  (see COPYING)
@@ -27,13 +27,13 @@ class InterceptPanel;
 /** Let OpenCPN choose where the toolbar button lands. */
 #define INTERCEPT_TOOL_POSITION -1
 
-/** A search-and-rescue case: the reported position and circumstances. */
+/** One tracking case: the reported position and its circumstances. */
 struct Case {
   double lat = 0.0;
   double lon = 0.0;
   wxDateTime time_of_report;
   wxString craft_type;
-  int pob = 0;  // Persons on board.
+  int pob = 0;  // People on board -- recorded only, not used in any calc.
   wxString grib_file_path;  // Empty means no GRIB file was selected.
 
   // Hand-entered drift of the target: the set (true direction it is moving

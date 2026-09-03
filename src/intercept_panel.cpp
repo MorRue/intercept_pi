@@ -93,7 +93,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_position_ctrl = new wxTextCtrl(panel, wxID_ANY);
   m_position_ctrl->SetHint(_("e.g. 45 30.5 N, 015 20.3 E"));
   m_position_ctrl->SetToolTip(
-      _("The distress position as first reported: latitude then longitude, "
+      _("The target's last known position: latitude then longitude, "
         "separated by a comma. Accepts decimal degrees (45.51), degrees + "
         "minutes (45 30.5 N) or degrees-minutes-seconds (45 30 30 N)."));
   {
@@ -161,8 +161,8 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     for (const auto& label : CraftTypeLabels()) m_craft_choice->Append(label);
     m_craft_choice->SetSelection(0);  // "Unknown / not specified"
     m_craft_choice->SetToolTip(
-        _("What is adrift. Sets the leeway coefficient (percentage of wind "
-          "speed) applied when a GRIB supplies wind."));
+        _("The kind of object being tracked. Sets the leeway coefficient "
+          "(percentage of wind speed) applied when a GRIB supplies wind."));
     pg->Add(m_craft_choice, 1, wxEXPAND);
 
     pg->Add(plain(gp, _("Persons on board (optional):")), 0,

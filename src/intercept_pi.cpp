@@ -264,7 +264,7 @@ std::vector<wxString> CraftTypeLabels() {
   // "wooden" and falls everything else through to the rubber-hull
   // coefficient, so an unknown craft gets that (the more cautious one).
   return {_("Unknown / not specified"),
-          _("Rubber boat (inflatable, RIB, liferaft)"),
+          _("Rubber boat (inflatable / RIB)"),
           _("Wooden boat (displacement hull)")};
 }
 
