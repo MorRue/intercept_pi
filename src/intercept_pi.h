@@ -125,9 +125,11 @@ public:
   // --- Called by the InterceptPanel ---------------------------------------
   /** OpenCPN's live own-ship fix, or nullopt until the first one arrives. */
   std::optional<OwnShipState> LiveFix() const;
-  /** Store the case and (re)draw the target/intercept marks, drift track and
-   *  course route on the chart. */
-  void ApplyCase(const Case& c, const std::optional<OwnShipState>& own);
+  /** Store the case and (re)draw the chart objects. show_target toggles the
+   *  "Target" mark at the reported position; show_lines toggles the drift
+   *  track and the course-to-steer route. */
+  void ApplyCase(const Case& c, const std::optional<OwnShipState>& own,
+                 bool show_target, bool show_lines);
   /** The panel was closed by its own [x] -- clear the toolbar toggle. */
   void OnPanelClosed();
 
@@ -139,7 +141,8 @@ private:
    * and (if own-ship is known) the "Course to steer" route.
    */
   void UpdateChartObjects(const Case& c,
-                          const std::optional<OwnShipState>& own);
+                          const std::optional<OwnShipState>& own,
+                          bool show_target, bool show_lines);
 
   /**
    * (Re)builds the two-point course-to-steer route (own-ship → datum) under
