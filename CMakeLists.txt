@@ -85,6 +85,15 @@ if (wxWidgets_FOUND)
   target_compile_definitions(test_reference_iamsar PRIVATE wxUSE_GUI=0)
   target_link_libraries(test_reference_iamsar ${wxWidgets_LIBRARIES})
   add_test(NAME reference_iamsar_test COMMAND test_reference_iamsar)
+
+  # -------- Standalone course-to-steer test --------
+  #
+  # CourseToSteer() is plain C++ with no wxWidgets dependency at all, so
+  # this doesn't need wxWidgets_LIBRARIES; it's built alongside the other
+  # standalone tests here for convenience (one enable_testing() call).
+  add_executable(test_intercept test/test_intercept.cpp src/intercept.cpp)
+  target_include_directories(test_intercept PRIVATE src)
+  add_test(NAME intercept_test COMMAND test_intercept)
 else ()
   message(WARNING
           "wxWidgets (base) not found; skipping test_grib_reader, "

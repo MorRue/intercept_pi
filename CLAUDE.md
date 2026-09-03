@@ -94,6 +94,17 @@ Windows is a target, so: no hardcoded paths (use `GetPluginDataDir()` and
 absolute pixels, and prefer the `wxDC` render path over OpenGL where there
 is a choice.
 
+**MSVC vs the Linux sandbox.** The code is written and built on Linux
+(GCC, lenient) and only compiled for Windows (MSVC, strict) in CI — the
+sandbox has no MSVC, so toolchain divergences surface only there. The
+recurring one is `<cmath>` constants: MSVC's `<cmath>` provides `M_PI` and
+friends only if `_USE_MATH_DEFINES` is set before it is first included.
+**A `.cpp` that uses `M_PI` and does not include a wxWidgets header (which
+sets it for you) must `#include "portability.h"` first**, before `<cmath>`
+or anything pulling it in. Also watch: MSVC narrowing-conversion errors GCC
+lets pass, `snprintf`/`strcpy` deprecation-as-error, `#pragma`/`__attribute__`,
+POSIX-only calls.
+
 ## Build and test
 
     cmake -B build -DCMAKE_BUILD_TYPE=Release
