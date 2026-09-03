@@ -17,7 +17,7 @@ namespace {
 constexpr double kEarthRadiusNm = 3440.065;
 constexpr long kStepSeconds = 1800;  // 30 minutes.
 // Bounds the number of integration steps for a very old report -- ageing
-// runs synchronously from CaseDialog::OnOK, so a months-old case must not
+// runs synchronously when the case is recalculated, so a months-old case must not
 // stall the UI thread. Beyond this many steps, the step size grows past
 // kStepSeconds instead of the step count growing past kMaxSteps.
 constexpr long kMaxSteps = 2000;

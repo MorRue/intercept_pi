@@ -16,13 +16,12 @@
 #include <string>
 #include <vector>
 
-#include "case_dialog.h"
 #include "config.h"
 #include "datum_age.h"
 #include "grib_reader.h"
+#include "intercept_panel.h"
 #include "intercept_pi.h"
 #include "plug_utils.h"
-#include "results_dialog.h"
 #include "route_helper.h"
 
 // ocpn_plugin.h WX_DECLARE_LIST's Plugin_WaypointList but does not define its
@@ -203,6 +202,38 @@ PositionParseResult ParseCoordinate(const wxString& text, bool is_latitude) {
   return result;
 }
 
+bool SplitPosition(const wxString& text, wxString* lat_text,
+                   wxString* lon_text) {
+  wxString trimmed = text;
+  trimmed.Trim(true).Trim(false);
+
+  int comma = trimmed.Find(',');
+  if (comma != wxNOT_FOUND) {
+    *lat_text = trimmed.Mid(0, comma);
+    *lon_text = trimmed.Mid(comma + 1);
+  } else {
+    size_t split_at = wxString::npos;
+    for (size_t i = 0; i < trimmed.Length(); ++i) {
+      wxChar c = wxToupper(trimmed[i]);
+      if (c == 'N' || c == 'S') {
+        split_at = i + 1;
+        break;
+      }
+    }
+    if (split_at == wxString::npos) return false;
+    *lat_text = trimmed.Mid(0, split_at);
+    *lon_text = trimmed.Mid(split_at);
+  }
+  lat_text->Trim(true).Trim(false);
+  lon_text->Trim(true).Trim(false);
+  return !lat_text->IsEmpty() && !lon_text->IsEmpty();
+}
+
+std::vector<wxString> CraftTypeLabels() {
+  return {_("Rubber boat (inflatable, RIB, liferaft)"),
+          _("Wooden boat (displacement hull)")};
+}
+
 void Case::FinalizeDatum() {
   std::unique_ptr<GribReader> grib;
   if (!grib_file_path.IsEmpty()) {
@@ -283,6 +314,10 @@ int intercept_pi::Init() {
 
 bool intercept_pi::DeInit() {
   if (m_leftclick_tool_id != -1) RemovePlugInTool(m_leftclick_tool_id);
+  if (m_panel) {
+    m_panel->Destroy();
+    m_panel = nullptr;
+  }
   wxString mark_guid = kDatumMarkGuid;
   DeleteSingleWaypoint(mark_guid);
   wxString route_guid = kCourseRouteGuid;
@@ -318,27 +353,32 @@ void intercept_pi::SetPositionFix(PlugIn_Position_Fix& pfix) {
   m_have_fix = true;
 }
 
-void intercept_pi::OnToolbarToolCallback(int id) {
-  std::optional<OwnShipState> live_fix;
-  if (m_have_fix) live_fix = OwnShipState{m_own_lat, m_own_lon, m_own_sog};
+void intercept_pi::OnToolbarToolCallback(int WXUNUSED(id)) {
+  if (!m_panel) m_panel = new InterceptPanel(m_parent_window, this);
 
-  CaseDialog dlg(m_parent_window, live_fix);
-  if (dlg.ShowModal() == wxID_OK) {
-    m_case = dlg.GetCase();
+  const bool show = !m_panel->IsShown();
+  m_panel->Show(show);
+  if (show) m_panel->Raise();
+  if (m_leftclick_tool_id != -1)
+    SetToolbarItemState(m_leftclick_tool_id, show);
+}
 
-    // A hand-entered own-ship position (case dialog) overrides the live
-    // fix; otherwise fall back to whatever SetPositionFix() last gave us.
-    std::optional<OwnShipState> own = dlg.GetOwnShipOverride();
-    if (!own && m_have_fix) own = live_fix;
+std::optional<OwnShipState> intercept_pi::LiveFix() const {
+  if (!m_have_fix) return std::nullopt;
+  return OwnShipState{m_own_lat, m_own_lon, m_own_sog};
+}
 
-    UpdateDatumMark(*m_case);
-    UpdateCourseRoute(*m_case, own);
+void intercept_pi::ApplyCase(const Case& c,
+                             const std::optional<OwnShipState>& own) {
+  m_case = c;
+  UpdateDatumMark(c);
+  UpdateCourseRoute(c, own);
+  RequestRefresh(m_parent_window);
+}
 
-    InterceptResultsDialog results(
-        m_parent_window, *m_case, own.has_value(),
-        own ? own->lat : 0.0, own ? own->lon : 0.0, own ? own->sog_kt : 0.0);
-    results.ShowModal();
-  }
+void intercept_pi::OnPanelClosed() {
+  if (m_leftclick_tool_id != -1)
+    SetToolbarItemState(m_leftclick_tool_id, false);
 }
 
 void intercept_pi::UpdateDatumMark(const Case& c) {
@@ -358,8 +398,8 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   DeletePlugInRoute(guid);
 
   // No own-ship position means there is no course line to draw -- the datum
-  // mark still shows where the target is, and the results dialog still gives
-  // bearing/distance if a position was entered by hand.
+  // mark still shows where the target is, and the panel still gives
+  // bearing/distance if a position was entered in the panel.
   if (!own) return;
 
   std::vector<GeoPoint> points =

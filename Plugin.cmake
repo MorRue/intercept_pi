@@ -59,8 +59,8 @@ set(SRC
     src/portability.h
     src/intercept_pi.h
     src/intercept_pi.cpp
-    src/case_dialog.h
-    src/case_dialog.cpp
+    src/intercept_panel.h
+    src/intercept_panel.cpp
     src/grib_reader.h
     src/grib_reader.cpp
     src/datum_age.h
@@ -71,8 +71,6 @@ set(SRC
     src/format.cpp
     src/route_helper.h
     src/route_helper.cpp
-    src/results_dialog.h
-    src/results_dialog.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )
