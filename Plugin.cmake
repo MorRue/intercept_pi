@@ -56,6 +56,7 @@ set(PKG_HOMEPAGE https://github.com/MorRue/intercept_pi)
 set(PKG_INFO_URL https://github.com/MorRue/intercept_pi)
 
 set(SRC
+    src/portability.h
     src/intercept_pi.h
     src/intercept_pi.cpp
     src/case_dialog.h
@@ -64,6 +65,8 @@ set(SRC
     src/grib_reader.cpp
     src/datum_age.h
     src/datum_age.cpp
+    src/intercept.h
+    src/intercept.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )
