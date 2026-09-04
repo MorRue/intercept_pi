@@ -27,7 +27,8 @@ jobs:
             libwxgtk3.2-dev libwxgtk-webview3.2-dev libwxgtk-media3.2-dev \
             libgtk-3-dev libglu1-mesa-dev \
             libbz2-dev libcurl4-openssl-dev libexpat1-dev libcairo2-dev \
-            libarchive-dev liblzma-dev liblz4-dev libexif-dev libelf-dev
+            libarchive-dev liblzma-dev liblz4-dev libexif-dev libelf-dev \
+            xvfb
 
       - uses: actions/checkout@v4
         with:
@@ -48,7 +49,10 @@ jobs:
       - name: Build and run tests
         run: |
           cmake --build build -j2
-          ctest --test-dir build --output-on-failure
+          # test_overlay draws with wxBitmap/wxMemoryDC, which need a
+          # display connection on Linux even for off-screen rendering.
+          xvfb-run --auto-servernum \
+            ctest --test-dir build --output-on-failure
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

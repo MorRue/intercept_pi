@@ -126,6 +126,27 @@ else ()
           "test_datum_age, and test_reference_leeway")
 endif ()
 
+# -------- Standalone overlay-drawing smoke test --------
+#
+# DrawInterceptOverlay() draws with wxBitmap/wxMemoryDC (CLAUDE.md Next #3),
+# which live in wxWidgets' "core" component, not "base" -- the tests above
+# deliberately avoid it. This re-runs find_package with core added, which
+# updates wxWidgets_LIBRARIES/wxWidgets_INCLUDE_DIRS for everything below
+# this point only; the wxUSE_GUI=0 targets above already captured the
+# base-only values when they were declared. Needs a display connection at
+# run time (xvfb-run on a headless Linux box; see build.yml).
+find_package(wxWidgets COMPONENTS core base)
+if (wxWidgets_FOUND)
+  include(${wxWidgets_USE_FILE})
+  add_executable(test_overlay test/test_overlay.cpp src/overlay_draw.cpp)
+  target_include_directories(test_overlay PRIVATE src)
+  target_link_libraries(test_overlay ${wxWidgets_LIBRARIES})
+  enable_testing()
+  add_test(NAME test_overlay COMMAND test_overlay)
+else ()
+  message(WARNING "wxWidgets (core) not found; skipping test_overlay")
+endif ()
+
 add_subdirectory("opencpn-libs/${PKG_API_LIB}")
 target_link_libraries(${CMAKE_PROJECT_NAME} ocpn::api)
 if (NOT "${MIN_API_VERSION}" STREQUAL "")

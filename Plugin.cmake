@@ -74,6 +74,8 @@ set(SRC
     src/format.cpp
     src/route_helper.h
     src/route_helper.cpp
+    src/overlay_draw.h
+    src/overlay_draw.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )
