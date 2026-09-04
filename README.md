@@ -65,7 +65,7 @@ The plugin targets plugin API 1.18, so it loads on OpenCPN 5.8 and later.
 
 ## Licence
 
-GPL-3.0-or-later — see [COPYING](COPYING) / [LICENSE](LICENSE).
+GPL-3.0-or-later — see [COPYING](COPYING).
 
 Derived from the OpenCPN plugin template by Mike Rossiter and the OpenCPN
 developers. Bundled and referenced third-party components, and their
