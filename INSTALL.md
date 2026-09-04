@@ -1,5 +1,9 @@
 ## INSTALL: Building Plugins generic README.
 
+> To **install the plugin into OpenCPN** (not build it), see
+> [docs/INSTALLING.md](docs/INSTALLING.md). This file is about building a
+> tarball from source.
+
 Install build dependencies as described in the
 [manual](https://opencpn-manuals.github.io/main/AlternativeWorkflow/Local-Build.html)
 

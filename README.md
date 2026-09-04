@@ -27,8 +27,18 @@ OpenCPN project, or any search-and-rescue authority.
 datum ageing (GRIB or manual drift), a moving-target intercept solve, and
 chart marks and a course-to-steer route. Alpha: the drift model is
 unreviewed and the Windows build has not been run inside a real OpenCPN
-yet. Not in the OpenCPN plugin catalogue; install the tarball from the
-[releases page](https://github.com/MorRue/intercept_pi/releases).
+yet.
+
+## Installing
+
+Not in the OpenCPN plugin catalogue yet. Download the tarball for your
+platform from the
+[releases page](https://github.com/MorRue/intercept_pi/releases) and import
+it through **Options → Plugins → Import plugin…** — full walkthrough with
+screenshots, and how to remove it, in
+[**docs/INSTALLING.md**](docs/INSTALLING.md).
+
+Needs OpenCPN 5.8 or newer (see Platform support below).
 
 ## Building
 
@@ -38,16 +48,12 @@ Requires wxWidgets 3.2, CMake and a C++ compiler.
     cmake -B build -DCMAKE_BUILD_TYPE=Release
     cmake --build build -j$(nproc) --target tarball
 
-The tarball in `build/` is installable through OpenCPN's plugin manager.
-For a quick local test, copy the shared library straight into the plugin
-directory instead:
-
-    cp build/libintercept_pi.so ~/.local/lib/opencpn/
-
-Then restart OpenCPN and enable the plugin under Options > Plugins.
-
-Release artifacts are built in CI, never locally — a locally built `.so`
-links against your machine's libraries and may not load elsewhere.
+Release artifacts come from CI, never a local build — a locally built
+library links against your machine's libraries and may not load elsewhere.
+For a fast local test you can skip the plugin manager and copy the library
+straight in (`./scripts/install-local.sh`); OpenCPN then treats it as
+unmanaged, so there is no Uninstall button — see
+[docs/INSTALLING.md](docs/INSTALLING.md#for-developers-quick-local-test-without-the-plugin-manager).
 
 ## Platform support
 
