@@ -34,6 +34,11 @@ class InterceptPanel : public wxFrame {
 public:
   InterceptPanel(wxWindow* parent, intercept_pi* plugin);
 
+  // Called by the plugin's DeInit() before Destroy(), which only schedules
+  // the deletion: stops the auto-recalculation timer and forgets the plugin,
+  // so nothing in between can touch the chart or a plugin being unloaded.
+  void Detach();
+
 private:
   void OnRecalculate(wxCommandEvent& event);
   void OnAutoTimer(wxTimerEvent& event);
@@ -45,10 +50,21 @@ private:
   // and skips a timer tick that arrives while an error dialog is still open.
   void RunRecalculate(bool automatic);
   void DoRecalculate(bool automatic);
-  // Shows an input error. On an automatic run it first switches automatic
-  // recalculation off, so an unattended panel doesn't stack up dialogs.
+  // A manual run shows the error in a dialog. An automatic run never opens
+  // a dialog: it skips this tick, keeps the last good result on the chart and
+  // shows the reason in the note line -- auto mode stays on and picks up
+  // again once the input is valid.
   void ReportInputError(const wxString& message, bool automatic);
-  void StopAutoRecalc();
+  // Draws the case on the chart and shows, in the note line, whether
+  // anything was left in place because OpenCPN is navigating with it.
+  void ApplyToChart(const Case& c, const std::optional<OwnShipState>& own);
+  // The line under the auto-recalculate row; empty hides it. A warning shows
+  // in red.
+  void SetNote(const wxString& text, bool warning);
+  // Re-lays out after the outputs or note changed. Manual runs resize the
+  // window to fit; automatic ones and display toggles only grow it, so a size
+  // the operator chose survives.
+  void RefreshLayout(bool automatic);
   void OnBrowseGrib(wxCommandEvent& event);
   void OnClearGrib(wxCommandEvent& event);
   void OnClose(wxCloseEvent& event);
@@ -109,6 +125,7 @@ private:
   wxCheckBox* m_auto_recalc;
   wxSpinCtrl* m_auto_minutes;
   wxStaticText* m_out_last_calc;  // Time of the last successful calculation.
+  wxStaticText* m_out_note;       // Why a tick was skipped / something kept.
   wxTimer m_auto_timer;
   bool m_recalc_running = false;
 };

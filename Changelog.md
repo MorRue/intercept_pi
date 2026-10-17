@@ -9,8 +9,17 @@ All notable changes to the Intercept plugin. This project follows
 - Automatic recalculation: "Auto-recalculate every N min" (1-60) at the
   bottom of the Result box repeats Recalculate on a timer, with the live GPS
   fix and the current time, and keeps updating the chart while the panel is
-  closed. A "Last calculated" time shows when it last ran. If an input
-  becomes invalid it switches itself off and says why, once.
+  closed. A "Last calculated" time shows when it last ran. An automatic run
+  never opens a dialog: if an input is invalid, or a position is still being
+  typed, it skips that run, keeps the last result on the chart and shows the
+  reason in red under the row.
+
+### Fixed
+- Recalculating (by hand, automatically, or by toggling a display checkbox)
+  no longer cancels navigation: if OpenCPN is navigating along the "Course
+  to steer" route or to one of the plugin's marks, that object is left as it
+  is, and the panel says so. Before, it was deleted and re-added, which
+  OpenCPN treats as deactivating the route.
 
 ## [0.1.0-alpha] — 2026-09-04
 

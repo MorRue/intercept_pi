@@ -384,6 +384,11 @@ int intercept_pi::Init() {
 bool intercept_pi::DeInit() {
   if (m_leftclick_tool_id != -1) RemovePlugInTool(m_leftclick_tool_id);
   if (m_panel) {
+    // Destroy() only schedules the deletion; stop the auto-recalculation
+    // timer and cut the panel's link to us first, so a tick in between can't
+    // redraw chart objects we are about to remove, or call into a plugin
+    // that OpenCPN may be unloading.
+    m_panel->Detach();
     m_panel->Destroy();
     m_panel = nullptr;
   }
@@ -450,16 +455,18 @@ std::optional<OwnShipState> intercept_pi::LiveFix() const {
   return OwnShipState{m_own_lat, m_own_lon, m_own_sog};
 }
 
-void intercept_pi::ApplyCase(const Case& c,
+bool intercept_pi::ApplyCase(const Case& c,
                              const std::optional<OwnShipState>& own,
                              bool show_target, bool show_estimated,
                              bool show_lines) {
   m_case = c;
-  UpdateChartObjects(c, own, show_target, show_estimated, show_lines);
+  const bool kept =
+      UpdateChartObjects(c, own, show_target, show_estimated, show_lines);
   RequestRefresh(m_parent_window);
+  return kept;
 }
 
-void intercept_pi::UpdateChartObjects(const Case& c,
+bool intercept_pi::UpdateChartObjects(const Case& c,
                                       const std::optional<OwnShipState>& own,
                                       bool show_target, bool show_estimated,
                                       bool show_lines) {
@@ -481,20 +488,36 @@ void intercept_pi::UpdateChartObjects(const Case& c,
   // visualisation, torn down in DeInit(). Nothing is written to the user's
   // navobj.xml, so an OpenCPN crash or kill that skips DeInit() cannot leave
   // orphan "Target" / "Intercept" / "Course to steer" objects behind.
-  g = kTargetMarkGuid;
-  DeleteSingleWaypoint(g);
-  if (show_target) {
-    PlugIn_Waypoint target(c.lat, c.lon, wxT("activepoint"), _("Target"),
-                           kTargetMarkGuid);
-    AddSingleWaypoint(&target, /*b_permanent=*/false);
+  //
+  // Anything OpenCPN is navigating with stays as it is (see the header):
+  // replacing it would silently switch navigation -- and an autopilot
+  // following it -- off.
+  const wxString active_route = GetActiveRouteGUID();
+  const wxString active_point = GetActiveWaypointGUID();
+  bool kept = false;
+
+  if (active_point == kTargetMarkGuid) {
+    kept = true;
+  } else {
+    g = kTargetMarkGuid;
+    DeleteSingleWaypoint(g);
+    if (show_target) {
+      PlugIn_Waypoint target(c.lat, c.lon, wxT("activepoint"), _("Target"),
+                             kTargetMarkGuid);
+      AddSingleWaypoint(&target, /*b_permanent=*/false);
+    }
   }
 
-  g = kEstimatedMarkGuid;
-  DeleteSingleWaypoint(g);
-  if (show_estimated) {
-    PlugIn_Waypoint estimated(c.aged_lat, c.aged_lon, wxT("circle"),
-                              _("Estimated position"), kEstimatedMarkGuid);
-    AddSingleWaypoint(&estimated, /*b_permanent=*/false);
+  if (active_point == kEstimatedMarkGuid) {
+    kept = true;
+  } else {
+    g = kEstimatedMarkGuid;
+    DeleteSingleWaypoint(g);
+    if (show_estimated) {
+      PlugIn_Waypoint estimated(c.aged_lat, c.aged_lon, wxT("circle"),
+                                _("Estimated position"), kEstimatedMarkGuid);
+      AddSingleWaypoint(&estimated, /*b_permanent=*/false);
+    }
   }
 
   g = kDriftTrackGuid;
@@ -520,7 +543,12 @@ void intercept_pi::UpdateChartObjects(const Case& c,
 
   // Passing nullopt makes UpdateCourseRoute tear down both the route and the
   // intercept mark, so "Show routes" off removes them.
-  UpdateCourseRoute(c, show_lines ? own : std::nullopt);
+  if (active_route == kCourseRouteGuid || active_point == kInterceptMarkGuid) {
+    kept = true;
+  } else {
+    UpdateCourseRoute(c, show_lines ? own : std::nullopt);
+  }
+  return kept;
 }
 
 void intercept_pi::OnPanelClosed() {

@@ -315,8 +315,9 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     m_auto_recalc->SetToolTip(
         _("Recalculate automatically at the interval on the right -- the same "
           "as pressing Recalculate, with the live GPS fix and the current "
-          "time. Keeps running while the panel is closed. Switches itself "
-          "off if an input becomes invalid."));
+          "time. Keeps running while the panel is closed. If an input is "
+          "invalid, or a position is still being edited, that run is skipped "
+          "and the reason is shown below; the chart keeps the last result."));
     m_auto_minutes = new wxSpinCtrl(bp, wxID_ANY, "1", wxDefaultPosition,
                                     wxDefaultSize, wxSP_ARROW_KEYS, 1, 60, 1);
     m_auto_minutes->SetToolTip(
@@ -329,6 +330,9 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     m_out_last_calc = new wxStaticText(bp, wxID_ANY, _("Last calculated: --"));
     auto_row->Add(m_out_last_calc, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
     box->Add(auto_row, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    m_out_note = new wxStaticText(bp, wxID_ANY, wxEmptyString);
+    m_out_note->Hide();
+    box->Add(m_out_note, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
     m_auto_recalc->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnAutoToggled, this);
     m_auto_minutes->Bind(wxEVT_SPINCTRL,
                          &InterceptPanel::OnAutoIntervalChanged, this);
@@ -446,11 +450,56 @@ void InterceptPanel::UpdateGribLock() {
 void InterceptPanel::OnDisplayToggled(wxCommandEvent& WXUNUSED(event)) {
   // Redraw from the last computed case; nothing to do before the first
   // recalculation.
-  if (m_last_case && m_plugin) {
-    m_plugin->ApplyCase(*m_last_case, m_last_own, m_show_target->IsChecked(),
-                        m_show_estimated->IsChecked(),
-                        m_show_routes->IsChecked());
+  if (m_last_case) {
+    ApplyToChart(*m_last_case, m_last_own);
+    RefreshLayout(true);
   }
+}
+
+void InterceptPanel::ApplyToChart(const Case& c,
+                                  const std::optional<OwnShipState>& own) {
+  if (!m_plugin) return;
+  const bool kept =
+      m_plugin->ApplyCase(c, own, m_show_target->IsChecked(),
+                          m_show_estimated->IsChecked(),
+                          m_show_routes->IsChecked());
+  SetNote(kept ? _("OpenCPN is navigating along the course route or to one "
+                   "of its marks, so that object was left where it was -- "
+                   "replacing it would cancel the navigation. The values "
+                   "above are current.")
+               : wxString(),
+          false);
+}
+
+void InterceptPanel::SetNote(const wxString& text, bool warning) {
+  // Back to normal via a sibling's colour: wxGTK ignores wxNullColour, so
+  // "reset to default" would leave the text red.
+  m_out_note->SetForegroundColour(warning
+                                      ? wxColour(180, 0, 0)
+                                      : m_out_last_calc->GetForegroundColour());
+  m_out_note->SetLabel(text);
+  m_out_note->Wrap(FromDIP(380));
+  m_out_note->Show(!text.IsEmpty());
+}
+
+void InterceptPanel::RefreshLayout(bool automatic) {
+  m_content->Layout();
+  if (automatic) {
+    // Grow if the new outputs need more room, but don't throw away a size
+    // the operator chose on every tick.
+    const wxSize best = GetBestSize();
+    const wxSize cur = GetSize();
+    if (best.x > cur.x || best.y > cur.y)
+      // (std::max) in parentheses: immune to a windows.h max() macro on MSVC.
+      SetSize(wxSize((std::max)(best.x, cur.x), (std::max)(best.y, cur.y)));
+  } else {
+    Fit();  // outputs may have grown/shrunk the panel's best size
+  }
+}
+
+void InterceptPanel::Detach() {
+  m_auto_timer.Stop();
+  m_plugin = nullptr;
 }
 
 void InterceptPanel::OnClose(wxCloseEvent& event) {
@@ -483,20 +532,17 @@ void InterceptPanel::OnAutoIntervalChanged(wxSpinEvent& WXUNUSED(event)) {
     m_auto_timer.Start(m_auto_minutes->GetValue() * 60 * 1000);
 }
 
-void InterceptPanel::StopAutoRecalc() {
-  m_auto_timer.Stop();
-  m_auto_recalc->SetValue(false);
-}
-
 void InterceptPanel::ReportInputError(const wxString& message,
                                       bool automatic) {
-  wxString text = message;
   if (automatic) {
-    StopAutoRecalc();
-    text += wxT("\n\n");
-    text += _("Automatic recalculation has been switched off.");
+    SetNote(wxString::Format(_("Not updated at %s: %s"),
+                             wxDateTime::Now().Format(wxT("%H:%M:%S")),
+                             message),
+            true);
+    RefreshLayout(true);
+    return;
   }
-  wxMessageBox(text, _("Invalid position"), wxOK | wxICON_ERROR, this);
+  wxMessageBox(message, _("Invalid position"), wxOK | wxICON_ERROR, this);
 }
 
 void InterceptPanel::RunRecalculate(bool automatic) {
@@ -515,6 +561,21 @@ void InterceptPanel::RunRecalculate(bool automatic) {
 }
 
 void InterceptPanel::DoRecalculate(bool automatic) {
+  // Don't read a position the operator is halfway through typing: a partial
+  // entry is either invalid or, worse, valid but wrong. Wait until they leave
+  // the field (or press Recalculate themselves).
+  if (automatic) {
+    wxWindow* focus = wxWindow::FindFocus();
+    for (wxTextCtrl* field : {m_position_ctrl, m_own_pos_ctrl}) {
+      if (focus == field && field->IsModified()) {
+        ReportInputError(_("a position is being edited -- click outside the "
+                           "field or press Recalculate when done"),
+                         true);
+        return;
+      }
+    }
+  }
+
   Case c;
   wxString error;
   if (!ParsePos(m_position_ctrl->GetValue(), _("Reported position"), &c.lat,
@@ -577,24 +638,13 @@ void InterceptPanel::DoRecalculate(bool automatic) {
   m_last_case = c;
   m_last_own = own;
   ShowOutputs(c, own);
-  if (m_plugin)
-    m_plugin->ApplyCase(c, own, m_show_target->IsChecked(),
-                        m_show_estimated->IsChecked(),
-                        m_show_routes->IsChecked());
+  ApplyToChart(c, own);
+  // These values are now in use; a later edit marks the field modified again.
+  m_position_ctrl->SetModified(false);
+  m_own_pos_ctrl->SetModified(false);
   m_out_last_calc->SetLabel(wxString::Format(
       _("Last calculated: %s"), wxDateTime::Now().Format(wxT("%H:%M:%S"))));
-  m_content->Layout();
-  if (automatic) {
-    // Grow if the new outputs need more room, but don't throw away a size
-    // the operator chose on every tick.
-    const wxSize best = GetBestSize();
-    const wxSize cur = GetSize();
-    if (best.x > cur.x || best.y > cur.y)
-      // (std::max) in parentheses: immune to a windows.h max() macro on MSVC.
-      SetSize(wxSize((std::max)(best.x, cur.x), (std::max)(best.y, cur.y)));
-  } else {
-    Fit();  // outputs may have grown/shrunk the panel's best size
-  }
+  RefreshLayout(automatic);
 }
 
 void InterceptPanel::ShowOutputs(const Case& c,

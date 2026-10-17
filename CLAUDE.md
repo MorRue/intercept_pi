@@ -225,10 +225,23 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      1-60 min spin + "Last calculated" time) drives the same
      `RunRecalculate()` path from a `wxTimer`; it keeps running while the
      panel is hidden. Input errors are returned by `ParsePos()` rather than
-     shown by it, so an automatic run can switch the timer off before showing
-     the message once (no dialog per tick); `m_recalc_running` skips a tick
-     that lands while an error dialog is open. Automatic runs only grow the
-     window, never `Fit()` it, so a size the operator chose survives.
+     shown by it: a manual run shows a dialog, an automatic run **never**
+     does — it skips the tick, keeps the last result, and puts the reason in
+     red in the note line (`SetNote`) under the auto row. An automatic tick
+     also skips while a position field has focus and unsaved edits
+     (`IsModified()`), so a half-typed position is never used.
+     `m_recalc_running` skips a tick that lands while a manual error dialog is
+     open. Automatic runs and display toggles only grow the window, never
+     `Fit()` it, so a size the operator chose survives. `DeInit()` calls
+     `InterceptPanel::Detach()` (stops the timer, nulls `m_plugin`) before
+     `Destroy()`, because `Destroy()` only schedules the deletion.
+     **Never replace an object OpenCPN is navigating with:**
+     `UpdateChartObjects` checks `GetActiveRouteGUID()` /
+     `GetActiveWaypointGUID()` and leaves the active route (with its
+     Intercept mark) or an active mark untouched; `ApplyCase` returns whether
+     it did, and the panel says so. Every route-update call in the plugin API
+     is delete + add, OpenCPN deactivates a route it deletes, and re-activating
+     one (`ActivateRoutePI`) needs API 1.21 — we target 1.18.
      Position but no speed → bearing + distance, no ETA;
      no position at all → datum only. Number formatting is pure
      (`format.{h,cpp}`) and unit-tested.

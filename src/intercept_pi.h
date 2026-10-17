@@ -150,8 +150,9 @@ public:
    *  "Target" mark at the reported position; show_estimated toggles the
    *  "Estimated position" mark at the drifted-forward datum; show_lines
    *  toggles the drift track, the course-to-steer route and the "Intercept"
-   *  mark at the route's far end. */
-  void ApplyCase(const Case& c, const std::optional<OwnShipState>& own,
+   *  mark at the route's far end. Returns true if a mark or the route was
+   *  left as it was because OpenCPN is navigating with it. */
+  bool ApplyCase(const Case& c, const std::optional<OwnShipState>& own,
                  bool show_target, bool show_estimated, bool show_lines);
   /** The panel was closed by its own [x] -- clear the toolbar toggle. */
   void OnPanelClosed();
@@ -164,8 +165,14 @@ private:
    * (if own-ship is known) the "Course to steer" route with an "Intercept"
    * mark at its far end. Each show_* flag suppresses its object(s), deleting
    * any stale copy.
+   *
+   * An object OpenCPN is navigating with (the active route, or a mark that
+   * is the active waypoint) is left untouched: deleting it would cancel the
+   * navigation, and api-18 has no call to re-activate a route. The route and
+   * the "Intercept" mark are kept or replaced together. Returns true if
+   * anything was kept.
    */
-  void UpdateChartObjects(const Case& c,
+  bool UpdateChartObjects(const Case& c,
                           const std::optional<OwnShipState>& own,
                           bool show_target, bool show_estimated,
                           bool show_lines);
