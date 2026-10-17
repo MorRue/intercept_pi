@@ -13,6 +13,7 @@
 #include <wx/filedlg.h>
 #include <wx/log.h>
 
+#include <algorithm>
 #include <cmath>
 #include <exception>
 #include <vector>
@@ -37,10 +38,10 @@ wxStaticText* AddRow(wxWindow* parent, wxFlexGridSizer* grid,
 // varargs do not accept std::string, so route through here.
 wxString Wx(const std::string& s) { return wxString(s.c_str(), wxConvUTF8); }
 
-// Parses the free-form "lat, lon" text; on failure shows a message box on
-// `parent` and returns false.
-bool ParsePos(const wxString& text, wxWindow* parent, const wxString& what,
-              double* lat, double* lon) {
+// Parses the free-form "lat, lon" text; on failure fills *error and returns
+// false. The caller decides how to show it.
+bool ParsePos(const wxString& text, const wxString& what, double* lat,
+              double* lon, wxString* error) {
   wxString lat_text, lon_text;
   PositionParseResult la, lo;
   if (!SplitPosition(text, &lat_text, &lon_text) ||
@@ -49,8 +50,7 @@ bool ParsePos(const wxString& text, wxWindow* parent, const wxString& what,
     wxString detail = !la.ok && !la.error.IsEmpty()   ? la.error
                       : !lo.ok && !lo.error.IsEmpty() ? lo.error
                       : _("expected e.g. '45 30.5 N, 015 20.3 E'");
-    wxMessageBox(wxString::Format(_("%s is not valid: %s"), what, detail),
-                 _("Invalid position"), wxOK | wxICON_ERROR, parent);
+    *error = wxString::Format(_("%s is not valid: %s"), what, detail);
     return false;
   }
   *lat = la.degrees;
@@ -66,7 +66,8 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
               wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER |
                   wxFRAME_FLOAT_ON_PARENT | wxFRAME_TOOL_WINDOW),
       m_plugin(plugin),
-      m_content(new wxPanel(this)) {
+      m_content(new wxPanel(this)),
+      m_auto_timer(this) {
   wxPanel* panel = m_content;
   auto* outer = new wxBoxSizer(wxVERTICAL);
 
@@ -308,6 +309,30 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     cg->Add(eta_row, 1, wxEXPAND);
     recalc->Bind(wxEVT_BUTTON, &InterceptPanel::OnRecalculate, this);
 
+    // Last line of the box: repeat Recalculate on a timer.
+    auto* auto_row = new wxBoxSizer(wxHORIZONTAL);
+    m_auto_recalc = new wxCheckBox(bp, wxID_ANY, _("Auto-recalculate every"));
+    m_auto_recalc->SetToolTip(
+        _("Recalculate automatically at the interval on the right -- the same "
+          "as pressing Recalculate, with the live GPS fix and the current "
+          "time. Keeps running while the panel is closed. Switches itself "
+          "off if an input becomes invalid."));
+    m_auto_minutes = new wxSpinCtrl(bp, wxID_ANY, "1", wxDefaultPosition,
+                                    wxDefaultSize, wxSP_ARROW_KEYS, 1, 60, 1);
+    m_auto_minutes->SetToolTip(
+        _("Minutes between automatic recalculations (1-60)."));
+    auto_row->Add(m_auto_recalc, 0, wxALIGN_CENTER_VERTICAL);
+    auto_row->Add(m_auto_minutes, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+    auto_row->Add(new wxStaticText(bp, wxID_ANY, _("min")), 0,
+                  wxALIGN_CENTER_VERTICAL | wxLEFT, 4);
+    auto_row->AddStretchSpacer();
+    m_out_last_calc = new wxStaticText(bp, wxID_ANY, _("Last calculated: --"));
+    auto_row->Add(m_out_last_calc, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
+    box->Add(auto_row, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    m_auto_recalc->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnAutoToggled, this);
+    m_auto_minutes->Bind(wxEVT_SPINCTRL,
+                         &InterceptPanel::OnAutoIntervalChanged, this);
+
     outer->Add(box, 0, wxEXPAND | wxALL, 10);
   }
 
@@ -359,6 +384,8 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_show_estimated->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   m_show_routes->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   Bind(wxEVT_CLOSE_WINDOW, &InterceptPanel::OnClose, this);
+  Bind(wxEVT_TIMER, &InterceptPanel::OnAutoTimer, this,
+       m_auto_timer.GetId());
   m_lock_position->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
   m_lock_time->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
   m_lock_own_pos->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
@@ -435,19 +462,64 @@ void InterceptPanel::OnClose(wxCloseEvent& event) {
 }
 
 void InterceptPanel::OnRecalculate(wxCommandEvent& WXUNUSED(event)) {
+  RunRecalculate(false);
+}
+
+void InterceptPanel::OnAutoTimer(wxTimerEvent& WXUNUSED(event)) {
+  RunRecalculate(true);
+}
+
+void InterceptPanel::OnAutoToggled(wxCommandEvent& WXUNUSED(event)) {
+  if (m_auto_recalc->IsChecked()) {
+    m_auto_timer.Start(m_auto_minutes->GetValue() * 60 * 1000);
+    RunRecalculate(true);  // Don't wait a whole interval for the first one.
+  } else {
+    m_auto_timer.Stop();
+  }
+}
+
+void InterceptPanel::OnAutoIntervalChanged(wxSpinEvent& WXUNUSED(event)) {
+  if (m_auto_timer.IsRunning())
+    m_auto_timer.Start(m_auto_minutes->GetValue() * 60 * 1000);
+}
+
+void InterceptPanel::StopAutoRecalc() {
+  m_auto_timer.Stop();
+  m_auto_recalc->SetValue(false);
+}
+
+void InterceptPanel::ReportInputError(const wxString& message,
+                                      bool automatic) {
+  wxString text = message;
+  if (automatic) {
+    StopAutoRecalc();
+    text += wxT("\n\n");
+    text += _("Automatic recalculation has been switched off.");
+  }
+  wxMessageBox(text, _("Invalid position"), wxOK | wxICON_ERROR, this);
+}
+
+void InterceptPanel::RunRecalculate(bool automatic) {
+  // An error dialog runs its own event loop, so a timer tick can arrive while
+  // one is still open -- skip it rather than stacking a second run on top.
+  if (m_recalc_running) return;
+  m_recalc_running = true;
   try {
-    DoRecalculate();
+    DoRecalculate(automatic);
   } catch (const std::exception& e) {
     wxLogWarning("intercept_pi: recalculate failed: %s", e.what());
   } catch (...) {
     wxLogWarning("intercept_pi: recalculate failed (unknown exception)");
   }
+  m_recalc_running = false;
 }
 
-void InterceptPanel::DoRecalculate() {
+void InterceptPanel::DoRecalculate(bool automatic) {
   Case c;
-  if (!ParsePos(m_position_ctrl->GetValue(), this, _("Reported position"),
-                &c.lat, &c.lon)) {
+  wxString error;
+  if (!ParsePos(m_position_ctrl->GetValue(), _("Reported position"), &c.lat,
+                &c.lon, &error)) {
+    ReportInputError(error, automatic);
     return;
   }
 
@@ -462,8 +534,9 @@ void InterceptPanel::DoRecalculate() {
     double olat = 0.0, olon = 0.0, osog = 0.0;
 
     if (!m_lock_own_pos->IsChecked()) {
-      if (!ParsePos(m_own_pos_ctrl->GetValue(), this, _("Own-ship position"),
-                    &olat, &olon)) {
+      if (!ParsePos(m_own_pos_ctrl->GetValue(), _("Own-ship position"), &olat,
+                    &olon, &error)) {
+        ReportInputError(error, automatic);
         return;
       }
       have_pos = true;
@@ -508,8 +581,20 @@ void InterceptPanel::DoRecalculate() {
     m_plugin->ApplyCase(c, own, m_show_target->IsChecked(),
                         m_show_estimated->IsChecked(),
                         m_show_routes->IsChecked());
+  m_out_last_calc->SetLabel(wxString::Format(
+      _("Last calculated: %s"), wxDateTime::Now().Format(wxT("%H:%M:%S"))));
   m_content->Layout();
-  Fit();  // outputs may have grown/shrunk the panel's best size
+  if (automatic) {
+    // Grow if the new outputs need more room, but don't throw away a size
+    // the operator chose on every tick.
+    const wxSize best = GetBestSize();
+    const wxSize cur = GetSize();
+    if (best.x > cur.x || best.y > cur.y)
+      // (std::max) in parentheses: immune to a windows.h max() macro on MSVC.
+      SetSize(wxSize((std::max)(best.x, cur.x), (std::max)(best.y, cur.y)));
+  } else {
+    Fit();  // outputs may have grown/shrunk the panel's best size
+  }
 }
 
 void InterceptPanel::ShowOutputs(const Case& c,

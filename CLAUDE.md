@@ -221,7 +221,15 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      the output rows in place, and calls
      `intercept_pi::ApplyCase(c, own, show_target, show_estimated, show_lines)`
      to refresh the chart; toggling a display checkbox re-applies the stored
-     last case. Position but no speed → bearing + distance, no ETA;
+     last case. **Auto-recalculate** (last row of the Result box: checkbox +
+     1-60 min spin + "Last calculated" time) drives the same
+     `RunRecalculate()` path from a `wxTimer`; it keeps running while the
+     panel is hidden. Input errors are returned by `ParsePos()` rather than
+     shown by it, so an automatic run can switch the timer off before showing
+     the message once (no dialog per tick); `m_recalc_running` skips a tick
+     that lands while an error dialog is open. Automatic runs only grow the
+     window, never `Fit()` it, so a size the operator chose survives.
+     Position but no speed → bearing + distance, no ETA;
      no position at all → datum only. Number formatting is pure
      (`format.{h,cpp}`) and unit-tested.
    - **(b) On the chart** *(done in the v0.1 PR)*, all on fixed GUIDs,

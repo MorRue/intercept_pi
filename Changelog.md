@@ -5,6 +5,13 @@ All notable changes to the Intercept plugin. This project follows
 
 ## [Unreleased]
 
+### Added
+- Automatic recalculation: "Auto-recalculate every N min" (1-60) at the
+  bottom of the Result box repeats Recalculate on a timer, with the live GPS
+  fix and the current time, and keeps updating the chart while the panel is
+  closed. A "Last calculated" time shows when it last ran. If an input
+  becomes invalid it switches itself off and says why, once.
+
 ## [0.1.0-alpha] — 2026-09-04
 
 First public build. Alpha: functional, but the drift model is unreviewed

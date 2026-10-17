@@ -15,6 +15,7 @@
 #include <wx/datectrl.h>
 #include <wx/spinctrl.h>
 #include <wx/timectrl.h>
+#include <wx/timer.h>
 
 #include "intercept_pi.h"
 
@@ -24,19 +25,30 @@
  * target drift, environment (GRIB) + craft, report -- followed by the
  * computed outputs (datum, drift source, elapsed, bearing/distance/ETA).
  * [Recalculate] re-runs the datum ageing and course-to-steer and refreshes
- * the chart marks + route; closing it with the [x] just hides it (state is
- * kept) and clears the toolbar toggle -- the plugin destroys it in DeInit().
+ * the chart marks + route, and can also run on a timer ("Auto-recalculate
+ * every N min"). Closing it with the [x] just hides it (state is kept, and a
+ * running auto-recalculation keeps updating the chart) and clears the
+ * toolbar toggle -- the plugin destroys it in DeInit().
  */
 class InterceptPanel : public wxFrame {
 public:
   InterceptPanel(wxWindow* parent, intercept_pi* plugin);
 
 private:
-  // Thin wrapper: catches any exception so it can't escape the wx event
-  // loop into OpenCPN (which would abort the process). Real work in
-  // DoRecalculate().
   void OnRecalculate(wxCommandEvent& event);
-  void DoRecalculate();
+  void OnAutoTimer(wxTimerEvent& event);
+  void OnAutoToggled(wxCommandEvent& event);
+  void OnAutoIntervalChanged(wxSpinEvent& event);
+
+  // Shared by the button and the timer. Catches any exception so it can't
+  // escape the wx event loop into OpenCPN (which would abort the process),
+  // and skips a timer tick that arrives while an error dialog is still open.
+  void RunRecalculate(bool automatic);
+  void DoRecalculate(bool automatic);
+  // Shows an input error. On an automatic run it first switches automatic
+  // recalculation off, so an unattended panel doesn't stack up dialogs.
+  void ReportInputError(const wxString& message, bool automatic);
+  void StopAutoRecalc();
   void OnBrowseGrib(wxCommandEvent& event);
   void OnClearGrib(wxCommandEvent& event);
   void OnClose(wxCloseEvent& event);
@@ -93,6 +105,12 @@ private:
   wxStaticText* m_out_bearing;
   wxStaticText* m_out_distance;
   wxStaticText* m_out_eta;
+
+  wxCheckBox* m_auto_recalc;
+  wxSpinCtrl* m_auto_minutes;
+  wxStaticText* m_out_last_calc;  // Time of the last successful calculation.
+  wxTimer m_auto_timer;
+  bool m_recalc_running = false;
 };
 
 #endif  // INTERCEPT_PI_INTERCEPT_PANEL_H__
