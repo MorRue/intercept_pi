@@ -10,12 +10,14 @@
 #include <wx/wx.h>
 #endif
 #include <wx/checkbox.h>
+#include <wx/display.h>
 #include <wx/filedlg.h>
 #include <wx/log.h>
 
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <initializer_list>
 #include <vector>
 
 #include "intercept_panel.h"
@@ -66,7 +68,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
               wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER |
                   wxFRAME_FLOAT_ON_PARENT | wxFRAME_TOOL_WINDOW),
       m_plugin(plugin),
-      m_content(new wxPanel(this)),
+      m_content(new wxScrolledWindow(this)),
       m_auto_timer(this) {
   wxPanel* panel = m_content;
   auto* outer = new wxBoxSizer(wxVERTICAL);
@@ -379,10 +381,15 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     for (wxStaticText* h : sub_headers) h->SetFont(italic_font);
   }
 
-  panel->SetSizerAndFit(outer);
+  // Not SetSizerAndFit(): that would make the full content size the window's
+  // minimum, and the panel could never be smaller than the screen allows.
+  m_content->SetSizer(outer);
+  m_content->SetScrollRate(10, 10);
+  m_content->SetMinSize(wxSize(150, 120));
   auto* frame_sizer = new wxBoxSizer(wxVERTICAL);
   frame_sizer->Add(panel, 1, wxEXPAND);
-  SetSizerAndFit(frame_sizer);
+  SetSizer(frame_sizer);
+  FitToScreen();
 
   m_show_target->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
   m_show_estimated->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnDisplayToggled, this);
@@ -394,6 +401,26 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_lock_time->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
   m_lock_own_pos->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
   m_lock_own_sog->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
+
+  // The mouse wheel over a number field or the craft dropdown would change
+  // its value (GTK does this even without focus) while you scroll the panel.
+  for (wxWindow* field : std::initializer_list<wxWindow*>{
+           m_own_sog_ctrl, m_set_ctrl, m_drift_ctrl, m_pob_ctrl,
+           m_auto_minutes, m_craft_choice}) {
+    field->Bind(wxEVT_MOUSEWHEEL, &InterceptPanel::OnFieldWheel, this);
+  }
+}
+
+void InterceptPanel::OnFieldWheel(wxMouseEvent& event) {
+  auto* field = wxDynamicCast(event.GetEventObject(), wxWindow);
+  wxWindow* focus = wxWindow::FindFocus();
+  // A field you clicked into is yours to wheel through; any other one
+  // scrolls the panel instead and never sees the wheel.
+  if (field && focus && (focus == field || field->IsDescendant(focus))) {
+    event.Skip();
+    return;
+  }
+  m_content->HandleOnMouseWheel(event);
 }
 
 void InterceptPanel::OnLockToggled(wxCommandEvent& WXUNUSED(event)) {
@@ -485,15 +512,11 @@ void InterceptPanel::SetNote(const wxString& text, bool warning) {
 void InterceptPanel::RefreshLayout(bool automatic) {
   m_content->Layout();
   if (automatic) {
-    // Grow if the new outputs need more room, but don't throw away a size
-    // the operator chose on every tick.
-    const wxSize best = GetBestSize();
-    const wxSize cur = GetSize();
-    if (best.x > cur.x || best.y > cur.y)
-      // (std::max) in parentheses: immune to a windows.h max() macro on MSVC.
-      SetSize(wxSize((std::max)(best.x, cur.x), (std::max)(best.y, cur.y)));
+    // Only refresh the scroll area: resizing the window on every tick would
+    // throw away a size the operator chose.
+    m_content->FitInside();
   } else {
-    Fit();  // outputs may have grown/shrunk the panel's best size
+    FitToScreen();  // outputs may have grown/shrunk the panel's best size
   }
 }
 
@@ -645,6 +668,47 @@ void InterceptPanel::DoRecalculate(bool automatic) {
   m_out_last_calc->SetLabel(wxString::Format(
       _("Last calculated: %s"), wxDateTime::Now().Format(wxT("%H:%M:%S"))));
   RefreshLayout(automatic);
+}
+
+void InterceptPanel::FitToScreen() {
+  m_content->FitInside();
+  const wxSize contents = m_content->GetSizer()->GetMinSize();
+  // The screen the panel is on (or OpenCPN's, before it is first shown),
+  // minus taskbar/dock.
+  const wxRect area =
+      wxDisplay(static_cast<const wxWindow*>(GetParent() ? GetParent() : this))
+          .GetClientArea();
+
+  // A dimension that doesn't fit gets a scrollbar, and that scrollbar takes
+  // room from the other dimension -- reserve it, so a vertical scrollbar
+  // doesn't force a horizontal one or the other way round.
+  wxSize frame = ClientToWindowSize(contents);
+  const int vbar = wxSystemSettings::GetMetric(wxSYS_VSCROLL_X, this);
+  const int hbar = wxSystemSettings::GetMetric(wxSYS_HSCROLL_Y, this);
+  const bool scroll_v = frame.y > area.height;
+  if (scroll_v) frame.x += vbar;
+  if (frame.x > area.width) {
+    frame.y += hbar;
+    if (!scroll_v && frame.y > area.height) frame.x += vbar;
+  }
+  // (std::min/max) in parentheses: immune to windows.h min()/max() macros.
+  frame.x = (std::min)(frame.x, area.width);
+  frame.y = (std::min)(frame.y, area.height);
+  SetSize(frame);
+
+  // Before the first Show() the window manager hasn't placed the panel yet
+  // and could put it on a different (smaller) monitor than the one the cap
+  // was worked out for -- open it over OpenCPN instead.
+  if (!IsShown()) CentreOnParent();
+
+  // A capped window can still hang off the screen if it sits low or far
+  // right; pull it back in.
+  wxRect r = GetRect();
+  if (r.GetBottom() > area.GetBottom())
+    r.y = (std::max)(area.y, area.GetBottom() - r.height + 1);
+  if (r.GetRight() > area.GetRight())
+    r.x = (std::max)(area.x, area.GetRight() - r.width + 1);
+  if (r.GetPosition() != GetPosition()) Move(r.GetPosition());
 }
 
 void InterceptPanel::ShowOutputs(const Case& c,

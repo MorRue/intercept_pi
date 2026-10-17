@@ -21,6 +21,13 @@ All notable changes to the Intercept plugin. This project follows
   is, and the panel says so. Before, it was deleted and re-added, which
   OpenCPN treats as deactivating the route.
 
+### Changed
+- The panel never opens taller or wider than the screen it is on; on a small
+  screen (a 1366x768 laptop, a 7" chart-plotter display) its contents scroll
+  instead of running off the bottom edge. Scrolling with the mouse wheel
+  over a number field or the craft dropdown scrolls the panel rather than
+  changing the value, unless you have clicked into that field.
+
 ## [0.1.0-alpha] — 2026-09-04
 
 First public build. Alpha: functional, but the drift model is unreviewed

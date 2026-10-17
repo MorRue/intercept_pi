@@ -231,10 +231,9 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      also skips while a position field has focus and unsaved edits
      (`IsModified()`), so a half-typed position is never used.
      `m_recalc_running` skips a tick that lands while a manual error dialog is
-     open. Automatic runs and display toggles only grow the window, never
-     `Fit()` it, so a size the operator chose survives. `DeInit()` calls
-     `InterceptPanel::Detach()` (stops the timer, nulls `m_plugin`) before
-     `Destroy()`, because `Destroy()` only schedules the deletion.
+     open. `DeInit()` calls `InterceptPanel::Detach()` (stops the timer, nulls
+     `m_plugin`) before `Destroy()`, because `Destroy()` only schedules the
+     deletion.
      **Never replace an object OpenCPN is navigating with:**
      `UpdateChartObjects` checks `GetActiveRouteGUID()` /
      `GetActiveWaypointGUID()` and leaves the active route (with its
@@ -242,6 +241,18 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      it did, and the panel says so. Every route-update call in the plugin API
      is delete + add, OpenCPN deactivates a route it deletes, and re-activating
      one (`ActivateRoutePI`) needs API 1.21 — we target 1.18.
+     The frame's contents are a `wxScrolledWindow` (`m_content`):
+     `FitToScreen()` sizes the window to its contents but caps it at the
+     display's client area (they scroll instead) and pulls it back on screen
+     — used at construction and after a manual Recalculate
+     (`RefreshLayout(false)`). Automatic runs and display toggles only
+     `FitInside()`, never resize, so a size the operator chose survives. Don't
+     go back to `SetSizerAndFit()` on the frame: it makes the full content
+     size the minimum window size. Before the first `Show()`, `FitToScreen()`
+     centres the panel on OpenCPN so it opens on the monitor the cap was
+     computed for. `OnFieldWheel` sends the mouse wheel over the number
+     fields and the craft dropdown to the scrolled area unless that field has
+     focus — on GTK the wheel otherwise changes their value while scrolling.
      Position but no speed → bearing + distance, no ETA;
      no position at all → datum only. Number formatting is pure
      (`format.{h,cpp}`) and unit-tested.

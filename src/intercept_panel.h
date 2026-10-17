@@ -13,6 +13,7 @@
 #include <wx/wx.h>
 #endif
 #include <wx/datectrl.h>
+#include <wx/scrolwin.h>
 #include <wx/spinctrl.h>
 #include <wx/timectrl.h>
 #include <wx/timer.h>
@@ -81,8 +82,18 @@ private:
   // shows why the course to steer is unavailable.
   void ShowOutputs(const Case& c, const std::optional<OwnShipState>& own);
 
+  // Sizes the window to show all of its contents, but never larger than the
+  // screen it is on (the contents scroll instead), and moves it back on
+  // screen if it would hang off the bottom or right edge.
+  void FitToScreen();
+  // Mouse wheel over a number field / the craft dropdown: scrolls the panel
+  // unless that field has focus, so scrolling can't change a value.
+  void OnFieldWheel(wxMouseEvent& event);
+
   intercept_pi* m_plugin;
-  wxPanel* m_content;
+  // Everything inside the frame. Scrolls when the screen is too small to
+  // show the whole panel (small laptops, 7" chart-plotter displays).
+  wxScrolledWindow* m_content;
 
   // "lock" checkboxes, one per input, sitting to the right of the field. All
   // identical in behaviour: checked => the field is disabled. The reported
