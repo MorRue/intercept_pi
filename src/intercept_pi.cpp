@@ -206,14 +206,16 @@ int intercept_pi::Init() {
   auto icon = GetPluginIcon("intercept_pi", PKG_NAME);
   auto toggled = GetPluginIcon("intercept_pi_toggled", PKG_NAME);
 
+  // wxITEM_CHECK: OpenCPN only keeps a button pressed, and shows its toggled
+  // icon, for a check tool -- SetToolbarItemState() mirrors the panel.
   if (icon.type == IconPath::Type::Svg) {
     m_leftclick_tool_id = InsertPlugInToolSVG(
-        "Intercept", icon.path, icon.path, toggled.path, wxITEM_NORMAL,
+        "Intercept", icon.path, icon.path, toggled.path, wxITEM_CHECK,
         _("Intercept"), "", nullptr, INTERCEPT_TOOL_POSITION, 0, this);
   } else if (icon.type == IconPath::Type::Png) {
     auto bitmap = LoadPngIcon(icon.path.c_str());
     m_leftclick_tool_id =
-        InsertPlugInTool("", &bitmap, &bitmap, wxITEM_NORMAL, _("Intercept"),
+        InsertPlugInTool("", &bitmap, &bitmap, wxITEM_CHECK, _("Intercept"),
                          "", nullptr, INTERCEPT_TOOL_POSITION, 0, this);
   } else {
     wxLogWarning("intercept_pi: no toolbar icon found for 'intercept_pi'");

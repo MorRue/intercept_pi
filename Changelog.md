@@ -50,7 +50,9 @@ All notable changes to the Intercept plugin. This project follows
 - The toolbar button is redrawn in the style of OpenCPN's own toolbar
   icons (24x24, light-grey lines on a dark square, a lighter square when
   the panel is open). It used to be dark lines on a transparent background,
-  hard to see on the dark toolbar, and red when toggled.
+  hard to see on the dark toolbar, and red when toggled. It now also stays
+  pressed (showing the toggled icon) while the panel is open; it was
+  registered as a plain button, so it never showed its toggled state.
 - The chart mark at the reported position is labelled "Reported position"
   instead of "Target" -- it marks where the target was reported, not where
   it is.
