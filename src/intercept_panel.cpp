@@ -15,6 +15,7 @@
 #include <wx/log.h>
 
 #include <algorithm>
+#include <cmath>
 #include <exception>
 #include <initializer_list>
 #include <vector>
@@ -102,13 +103,13 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     outer->Add(box, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
   };
 
-  // Field + a "lock" checkbox on its right; checked disables the field.
-  auto with_lock = [&](wxWindow* p, wxSizer* field, wxCheckBox** out_cb,
-                       const wxString& lock_tip) {
+  // Field + a checkbox on its right; checked disables the field.
+  auto with_check = [&](wxWindow* p, wxSizer* field, wxCheckBox** out_cb,
+                        const wxString& label, const wxString& tip) {
     auto* s = new wxBoxSizer(wxHORIZONTAL);
     s->Add(field, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-    auto* cb = new wxCheckBox(p, wxID_ANY, _("lock"));
-    cb->SetToolTip(lock_tip);
+    auto* cb = new wxCheckBox(p, wxID_ANY, label);
+    cb->SetToolTip(tip);
     s->Add(cb, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
     *out_cb = cb;
     return s;
@@ -121,14 +122,13 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_own_pos_ctrl->SetHint(_("e.g. 45 10 N, 015 05 E"));
   m_own_pos_ctrl->SetToolTip(
       _("Your position to steer from, same formats as the reported "
-        "position. Leave locked to use OpenCPN's GPS fix; unlock to type "
-        "one in."));
+        "position. Used when 'use GPS position' is not ticked."));
   {
     auto* f = new wxBoxSizer(wxHORIZONTAL);
     f->Add(m_own_pos_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-    g->Add(with_lock(gp, f, &m_lock_own_pos,
-                     _("Locked: use OpenCPN's live GPS position. "
-                       "Unlocked: use the position typed here.")),
+    g->Add(with_check(gp, f, &m_use_gps_pos, _("use GPS position"),
+                      _("Ticked: use OpenCPN's live GPS position. "
+                        "Not ticked: use the position typed here.")),
            1, wxEXPAND);
   }
   g->Add(plain(gp, _("Speed (kt):")), 0, wxALIGN_CENTER_VERTICAL);
@@ -136,15 +136,23 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
                                         wxDefaultPosition, wxDefaultSize,
                                         wxSP_ARROW_KEYS, 0.0, 99.0, 0.0, 0.1);
   m_own_sog_ctrl->SetToolTip(
-      _("Your speed over ground, knots. Needed for an ETA. Leave locked to "
-        "use the GPS speed."));
+      _("Your speed over ground, knots, entered by hand. Needed for an "
+        "intercept and an ETA. Used when 'use GPS speed' is not ticked."));
   {
     auto* f = new wxBoxSizer(wxHORIZONTAL);
     f->Add(m_own_sog_ctrl, 0, wxALIGN_CENTER_VERTICAL);
-    g->Add(with_lock(gp, f, &m_lock_own_sog,
-                     _("Locked: use OpenCPN's live GPS speed. "
-                       "Unlocked: use the speed typed here.")),
-           1, wxEXPAND);
+    wxSizer* row = with_check(gp, f, &m_use_gps_sog, _("use GPS speed"),
+                              _("Ticked: use the speed OpenCPN gets from the "
+                                "GPS (shown on the right). Not ticked: use "
+                                "the speed typed here."));
+    m_gps_sog_ctrl = new wxTextCtrl(gp, wxID_ANY, wxT("--"), wxDefaultPosition,
+                                    wxSize(FromDIP(80), -1), wxTE_READONLY);
+    m_gps_sog_ctrl->SetToolTip(
+        _("The speed over ground OpenCPN currently gets from the GPS. '--' "
+          "when there is no GPS speed -- untick 'use GPS speed' and enter "
+          "one by hand."));
+    row->Add(m_gps_sog_ctrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+    g->Add(row, 1, wxEXPAND);
   }
 
   // --- Report ---
@@ -159,7 +167,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   {
     auto* f = new wxBoxSizer(wxHORIZONTAL);
     f->Add(m_position_ctrl, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL);
-    g->Add(with_lock(gp, f, &m_lock_position,
+    g->Add(with_check(gp, f, &m_lock_position, _("lock"),
                      _("Lock the reported position so a later Recalculate "
                        "can't change it by accident.")),
            1, wxEXPAND);
@@ -177,7 +185,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     auto* f = new wxBoxSizer(wxHORIZONTAL);
     f->Add(m_date_ctrl, 0, wxALIGN_CENTER_VERTICAL);
     f->Add(m_time_ctrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
-    g->Add(with_lock(gp, f, &m_lock_time,
+    g->Add(with_check(gp, f, &m_lock_time, _("lock"),
                      _("Lock the report date and time against accidental "
                        "edits.")),
            1, wxEXPAND);
@@ -267,12 +275,13 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     outer->Add(box, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
   }
 
-  // Own-ship position and speed start locked: use the live GPS fix by default,
-  // unlock the one(s) you want to enter by hand.
-  m_lock_own_pos->SetValue(true);
-  m_lock_own_sog->SetValue(true);
+  // Own-ship position and speed start on GPS: the live fix by default, untick
+  // the one(s) you want to enter by hand.
+  m_use_gps_pos->SetValue(true);
+  m_use_gps_sog->SetValue(true);
   m_own_pos_ctrl->Enable(false);
   m_own_sog_ctrl->Enable(false);
+  ShowLiveFix(m_plugin ? m_plugin->LiveFix() : std::nullopt);
 
   // -- result box: target state, then the course to steer. Recalculate
   //    shares the ETA row at bottom-right, no row of its own. --
@@ -415,8 +424,8 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
        m_auto_timer.GetId());
   m_lock_position->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
   m_lock_time->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
-  m_lock_own_pos->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
-  m_lock_own_sog->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
+  m_use_gps_pos->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
+  m_use_gps_sog->Bind(wxEVT_CHECKBOX, &InterceptPanel::OnLockToggled, this);
 
   // The mouse wheel over a number field or the craft dropdown would change
   // its value (GTK does this even without focus) while you scroll the panel.
@@ -439,13 +448,21 @@ void InterceptPanel::OnFieldWheel(wxMouseEvent& event) {
   m_content->HandleOnMouseWheel(event);
 }
 
+void InterceptPanel::ShowLiveFix(const std::optional<OwnShipState>& fix) {
+  // OpenCPN reports an unknown speed as NaN.
+  const wxString text = fix && std::isfinite(fix->sog_kt)
+                            ? wxString::Format(_("%.1f kt"), fix->sog_kt)
+                            : wxString(wxT("--"));
+  if (m_gps_sog_ctrl->GetValue() != text) m_gps_sog_ctrl->ChangeValue(text);
+}
+
 void InterceptPanel::OnLockToggled(wxCommandEvent& WXUNUSED(event)) {
   m_position_ctrl->Enable(!m_lock_position->IsChecked());
   m_date_ctrl->Enable(!m_lock_time->IsChecked());
   m_time_ctrl->Enable(!m_lock_time->IsChecked());
 
-  const bool own_pos_manual = !m_lock_own_pos->IsChecked();
-  const bool own_sog_manual = !m_lock_own_sog->IsChecked();
+  const bool own_pos_manual = !m_use_gps_pos->IsChecked();
+  const bool own_sog_manual = !m_use_gps_sog->IsChecked();
   m_own_pos_ctrl->Enable(own_pos_manual);
   m_own_sog_ctrl->Enable(own_sog_manual);
 
@@ -455,7 +472,8 @@ void InterceptPanel::OnLockToggled(wxCommandEvent& WXUNUSED(event)) {
     if (own_pos_manual && m_own_pos_ctrl->IsEmpty()) {
       m_own_pos_ctrl->SetValue(FormatPosition(fix->lat, fix->lon));
     }
-    if (own_sog_manual && m_own_sog_ctrl->GetValue() == 0.0) {
+    if (own_sog_manual && m_own_sog_ctrl->GetValue() == 0.0 &&
+        std::isfinite(fix->sog_kt)) {
       m_own_sog_ctrl->SetValue(fix->sog_kt);
     }
   }
@@ -631,7 +649,7 @@ void InterceptPanel::DoRecalculate(bool automatic) {
     bool have_pos = false;
     double olat = 0.0, olon = 0.0, osog = 0.0;
 
-    if (!m_lock_own_pos->IsChecked()) {
+    if (!m_use_gps_pos->IsChecked()) {
       if (!ParsePos(m_own_pos_ctrl->GetValue(), _("Own-ship position"), &olat,
                     &olon, &error)) {
         ReportInputError(error, automatic);
@@ -644,7 +662,7 @@ void InterceptPanel::DoRecalculate(bool automatic) {
       have_pos = true;
     }
 
-    if (!m_lock_own_sog->IsChecked()) {
+    if (!m_use_gps_sog->IsChecked()) {
       osog = m_own_sog_ctrl->GetValue();
     } else if (fix) {
       osog = fix->sog_kt;

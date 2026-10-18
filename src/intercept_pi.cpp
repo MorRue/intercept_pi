@@ -265,6 +265,7 @@ void intercept_pi::SetPositionFix(PlugIn_Position_Fix& pfix) {
   m_own_cog = pfix.Cog;
   m_own_sog = pfix.Sog;
   m_have_fix = true;
+  if (m_panel) m_panel->ShowLiveFix(LiveFix());
 }
 
 void intercept_pi::OnToolbarToolCallback(int WXUNUSED(id)) {

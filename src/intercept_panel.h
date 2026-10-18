@@ -40,6 +40,10 @@ public:
   // so nothing in between can touch the chart or a plugin being unloaded.
   void Detach();
 
+  // Shows OpenCPN's live GPS speed next to "use GPS speed". Called by the
+  // plugin on every position fix.
+  void ShowLiveFix(const std::optional<OwnShipState>& fix);
+
 private:
   void OnRecalculate(wxCommandEvent& event);
   void OnAutoTimer(wxTimerEvent& event);
@@ -95,15 +99,14 @@ private:
   // show the whole panel (small laptops, 7" chart-plotter displays).
   wxScrolledWindow* m_content;
 
-  // "lock" checkboxes, one per input, sitting to the right of the field. All
-  // identical in behaviour: checked => the field is disabled. The reported
-  // position and time start unlocked (you type them in each time); the
-  // own-ship fields start locked, so by default the live GPS fix is used and
-  // you unlock only the one(s) you want to enter by hand.
+  // A checkbox to the right of each input; checked => the field is disabled.
+  // Report fields: "lock", starting unlocked (you type them in each time).
+  // Own-ship fields: "use GPS position" / "use GPS speed", starting ticked,
+  // so the live fix is used until you untick one to enter it by hand.
   wxCheckBox* m_lock_position;
   wxCheckBox* m_lock_time;
-  wxCheckBox* m_lock_own_pos;
-  wxCheckBox* m_lock_own_sog;
+  wxCheckBox* m_use_gps_pos;  // Checked: own-ship position from OpenCPN's GPS.
+  wxCheckBox* m_use_gps_sog;  // Checked: own-ship speed from OpenCPN's GPS.
   wxCheckBox* m_show_target;     // "Target" mark at the reported position.
   wxCheckBox* m_show_estimated;  // "Estimated position" mark at the datum.
   wxCheckBox* m_show_routes;     // Drift track + course-to-steer route.
@@ -118,6 +121,7 @@ private:
   wxSpinCtrlDouble* m_drift_ctrl;
   wxTextCtrl* m_own_pos_ctrl;
   wxSpinCtrlDouble* m_own_sog_ctrl;
+  wxTextCtrl* m_gps_sog_ctrl;  // Read-only: the GPS speed right now.
 
   // The most recent finalised case and effective own-ship, kept so the display
   // checkboxes can redraw the chart without re-parsing the inputs.

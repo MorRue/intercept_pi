@@ -35,6 +35,11 @@ All notable changes to the Intercept plugin. This project follows
   OpenCPN treats as deactivating the route.
 
 ### Changed
+- Own ship: the speed's "lock" checkbox is now "use GPS speed", with a
+  read-only field next to it showing the speed OpenCPN currently gets from
+  the GPS ("--" when there is none), so you can see whether it is worth
+  using or enter a speed by hand instead. The position's "lock" checkbox is
+  now "use GPS position".
 - The panel never opens taller or wider than the screen it is on; on a small
   screen (a 1366x768 laptop, a 7" chart-plotter display) its contents scroll
   instead of running off the bottom edge. Scrolling with the mouse wheel

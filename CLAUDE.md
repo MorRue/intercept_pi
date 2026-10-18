@@ -209,10 +209,13 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      box with two italic sub-headers, "Explicit drift (ignored when a GRIB
      file is set)" (set, rate → `ComputeAgedDatum`'s `ManualSetAndDrift`)
      and "Environment drift (from a GRIB file…)" (GRIB row **Browse…** /
-     **Clear**, craft type default "Unknown", optional POB). Position/time/
-     own-ship fields **each have a "lock" checkbox to their right** — checked
-     ⇒ field disabled; own-ship pos/speed start locked (live `SetPositionFix`
-     used), report fields start unlocked. `UpdateGribLock()`: while a GRIB
+     **Clear**, craft type default "Unknown", optional POB). Every input has
+     a checkbox to its right — checked ⇒ field disabled: the report fields'
+     is "lock" (start unlocked); own-ship position's is **"use GPS
+     position"** and speed's **"use GPS speed"** (both start ticked, live
+     `SetPositionFix` used). A read-only field after "use GPS speed" shows
+     the live GPS SOG (`ShowLiveFix()`, called from `SetPositionFix`; "--"
+     when OpenCPN has no speed, which it reports as NaN). `UpdateGribLock()`: while a GRIB
      path is set the two explicit-drift fields are disabled (file
      wind+current win).
      Then a **"Result" box** with two italic sub-headers. **Target** —
