@@ -25,6 +25,8 @@
 #include "format.h"
 #include "intercept.h"
 
+#include "i18n.h"  // After the wx headers: replaces their _().
+
 namespace {
 
 wxStaticText* AddRow(wxWindow* parent, wxFlexGridSizer* grid,

@@ -173,8 +173,14 @@ trees and configure again; git itself survives a rename untouched.
 - The `OCPN_*_REPO` values in `Plugin.cmake` name Cloudsmith repositories
   under `MorRue/` that do not exist yet. Harmless: the upload step only runs
   when CI has Cloudsmith credentials.
-- `po/` still holds the template's translations. Harmless — unmatched
-  strings fall back to English — but stale.
+- **Translations:** the plugin has none yet (`po/` holds only
+  `POTFILES.in`). `_()` is redefined in `src/i18n.h` to look only in the
+  plugin's own catalog, `opencpn-intercept_pi` (loaded in `Init()` with
+  `AddLocaleCatalog`). wxWidgets' own `_()` searches every loaded catalog,
+  OpenCPN's included, so labels that match an OpenCPN string came out in
+  OpenCPN's translation ("Own ship" → "Eigenes Schiff") in an otherwise
+  English panel. **Every source file that uses `_()` must `#include
+  "i18n.h"` after its wx headers.**
 
 ## Next
 

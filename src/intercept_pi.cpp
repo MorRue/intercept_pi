@@ -28,6 +28,8 @@
 #include "plug_utils.h"
 #include "route_helper.h"
 
+#include "i18n.h"  // After the wx headers: replaces their _().
+
 // ocpn_plugin.h WX_DECLARE_LIST's Plugin_WaypointList but does not define its
 // node methods; OpenCPN's own shared library provides them on Linux, but the
 // MSVC import lib (opencpn-libs/api-18/msvc-wx32/opencpn.lib) does not, so
@@ -196,6 +198,9 @@ intercept_pi::intercept_pi(void* ppimgr)
 intercept_pi::~intercept_pi() = default;
 
 int intercept_pi::Init() {
+  // The plugin's own translations, if any are installed for the current
+  // language; _() only looks there (see i18n.h).
+  AddLocaleCatalog(wxS(INTERCEPT_PI_CATALOG));
   m_parent_window = GetOCPNCanvasWindow();
 
   auto icon = GetPluginIcon("intercept_pi", PKG_NAME);

@@ -28,6 +28,11 @@ All notable changes to the Intercept plugin. This project follows
   none before.
 
 ### Fixed
+- The panel no longer mixes languages: a few labels that happen to match
+  OpenCPN's own texts ("Own ship", "Clear") were shown in OpenCPN's
+  translation, for example German, while the rest stayed English. The
+  plugin now only uses its own translations, so it is consistently English
+  until it gets a translation of its own.
 - The intercept is found whenever own ship can reach the target, also when
   the target is the faster of the two but drifting toward or across own
   ship's path; the solver used to give up whenever the target was faster.

@@ -15,6 +15,8 @@
 #include <string>
 #include <vector>
 
+#include "i18n.h"  // After the wx headers: replaces their _().
+
 namespace {
 
 /** Parses token as a number, requiring the whole token to be consumed. */
