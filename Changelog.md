@@ -47,6 +47,10 @@ All notable changes to the Intercept plugin. This project follows
   OpenCPN treats as deactivating the route.
 
 ### Changed
+- The toolbar button is redrawn in the style of OpenCPN's own toolbar
+  icons (24x24, light-grey lines on a dark square, a lighter square when
+  the panel is open). It used to be dark lines on a transparent background,
+  hard to see on the dark toolbar, and red when toggled.
 - The chart mark at the reported position is labelled "Reported position"
   instead of "Target" -- it marks where the target was reported, not where
   it is.

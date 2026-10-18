@@ -1,11 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <!-- own-ship track converging on the target -->
-  <path d="M6 58 L34 30" fill="none" stroke="#1a1a1a" stroke-width="4"
-        stroke-linecap="round" stroke-dasharray="7 5"/>
-  <!-- target circle -->
-  <circle cx="40" cy="24" r="13" fill="none" stroke="#1a1a1a" stroke-width="4"/>
-  <!-- crosshair -->
-  <path d="M40 5 L40 15 M40 33 L40 43 M21 24 L31 24 M49 24 L59 24"
-        fill="none" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="40" cy="24" r="4.5" fill="#1a1a1a"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- OpenCPN MUI_flat toolbar style: 24x24, dark square, light-grey 2 px strokes -->
+  <rect width="24" height="24" fill="#282828"/>
+  <g fill="none" stroke="#b4b4b4" stroke-width="2" stroke-linecap="round">
+    <!-- own-ship track converging on the target -->
+    <path d="M3.5 20.5 L9.5 14.5" stroke-dasharray="2.2 3"/>
+    <!-- target circle with crosshair -->
+    <circle cx="15" cy="9" r="5"/>
+    <path d="M15 1.8 V3.6 M15 14.4 V16.2 M7.8 9 H9.6 M20.4 9 H22.2"/>
+  </g>
+  <circle cx="15" cy="9" r="1.4" fill="#b4b4b4"/>
 </svg>
