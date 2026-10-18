@@ -37,6 +37,16 @@ slow_speed=1.0  # For the no-intercept shot: slower than the drift.
 view_lat=35.57 view_lon=13.82 view_scale=0.0075
 hours_ago=6
 
+# Panel layout: y of each row, and of the boxes cropped, relative to the
+# panel's top -- read off a full-screen shot in steps/ after a layout change.
+# x positions are in the clicks below; right-aligned ones use panel_w.
+y_speed=86 y_reported=157 y_time=197 y_set=291 y_rate=331
+y_grib=400 y_craft=440 y_leeway=474 y_pob=507
+y_ownship_box=0 h_ownship_box=112 y_report_box=116 h_report_box=114
+y_drift_box=230 h_drift_box=305 y_result_box=539 h_result_box=335
+y_course=687 h_course=135 y_recalc=800 y_auto=840 h_auto=40
+y_display=877 h_display=40
+
 for tool in Xvfb xdotool import convert opencpn python3; do
   command -v "$tool" >/dev/null || { echo "missing: $tool" >&2; exit 1; }
 done
@@ -147,7 +157,7 @@ type_field() {  # type_field X Y TEXT -- replace a field's contents
   sleep 0.7
 }
 recalculate() {  # Recalculate sits right-aligned in the ETA row.
-  click $((panel_w - 72)) 773
+  click $((panel_w - 72)) "$y_recalc"
   sleep 2
   local err
   err=$(xdotool search --onlyvisible --name 'Invalid position' 2>/dev/null |
@@ -189,34 +199,34 @@ log "wrote 01-toolbar-button.png"
 # --- Case 1: explicit drift -------------------------------------------------
 
 log "entering the demo case"
-type_field 304 157 "$reported"
+type_field 304 "$y_reported" "$reported"
 # The time picker takes typed digits into the field under the click: the
 # hour. Going back further than midnight would need the date too, so keep it
 # within today.
 hour=$(date +%H)
 report_hour=$((10#$hour >= hours_ago ? 10#$hour - hours_ago : 0))
-click 297 197
+click 297 "$y_time"
 focus_panel
 xdotool type --delay 80 "$(printf '%02d' "$report_hour")"
 xdotool key Tab
 sleep 0.7
-type_field 140 291 "$drift_set"
-type_field 140 331 "$drift_rate"
+type_field 140 "$y_set" "$drift_set"
+type_field 140 "$y_rate" "$drift_rate"
 recalculate
 snap explicit-drift
 
 crop 0 0 "$panel_w" "$panel_h" 02-panel-overview.png
-crop 0 0 "$panel_w" 112 03-own-ship.png
-crop 0 116 "$panel_w" 114 04-report.png
-crop 0 230 "$panel_w" 280 05-target-drift.png
-crop 0 512 "$panel_w" 335 08-result.png
-crop 0 850 "$panel_w" 40 11-display-checkboxes.png
+crop 0 "$y_ownship_box" "$panel_w" "$h_ownship_box" 03-own-ship.png
+crop 0 "$y_report_box" "$panel_w" "$h_report_box" 04-report.png
+crop 0 "$y_drift_box" "$panel_w" "$h_drift_box" 05-target-drift.png
+crop 0 "$y_result_box" "$panel_w" "$h_result_box" 08-result.png
+crop 0 "$y_display" "$panel_w" "$h_display" 11-display-checkboxes.png
 crop_screen 0 26 1100 950 10-chart-overview.png
 
 # --- Case 2: GRIB file + craft type, auto-recalculate (worked example) ------
 
 log "selecting the GRIB file"
-click 364 400
+click 364 "$y_grib"
 dialog=$(wait_window 'Select GRIB file' 20)
 xdotool windowfocus --sync "$dialog"
 xdotool key --window "$dialog" ctrl+l
@@ -225,34 +235,34 @@ xdotool key --window "$dialog" Return
 sleep 2
 # Craft type: without a window manager a click neither opens the dropdown's
 # list nor focuses it. Focus it from the keyboard instead -- click into
-# "Persons on board" just below, Shift+Tab back -- and step it with Down:
-# "Unknown" -> "Rubber boat (inflatable / RIB)".
-click 230 480
+# "Persons on board", Shift+Tab back past the leeway checkbox -- and step it
+# with Down: "Unknown" -> "Rubber boat (inflatable / RIB)".
+click 230 "$y_pob"
 focus_panel
-xdotool key shift+Tab Down
+xdotool key shift+Tab shift+Tab Down
 sleep 0.7
 recalculate
 snap grib
-crop 0 230 "$panel_w" 280 06-target-drift-grib.png
+crop 0 "$y_drift_box" "$panel_w" "$h_drift_box" 06-target-drift-grib.png
 
-type_field 220 813 5
-click 29 813  # Auto-recalculate: runs once straight away.
+type_field 220 "$y_auto" 5
+click 29 "$y_auto"  # Auto-recalculate: runs once straight away.
 sleep 3
 snap auto
-crop 0 795 "$panel_w" 40 07-auto-recalculate.png
+crop 0 $((y_auto - 18)) "$panel_w" "$h_auto" 07-auto-recalculate.png
 crop 0 0 "$panel_w" "$panel_h" 12-example-panel.png
 crop_screen 0 26 1100 950 13-example-chart.png
 
 # --- Case 3: no intercept -----------------------------------------------------
 
 log "own ship slower than the drift"
-click 29 813                         # Auto-recalculate off again.
-click $((panel_w - 60)) 400          # Clear the GRIB file: back to the
+click 29 "$y_auto"                   # Auto-recalculate off again.
+click $((panel_w - 60)) "$y_grib"    # Clear the GRIB file: back to the
                                      # explicit drift.
-click $((panel_w - 215)) 86          # Untick "use GPS speed".
-type_field 115 86 "$slow_speed"
+click $((panel_w - 215)) "$y_speed"  # Untick "use GPS speed".
+type_field 115 "$y_speed" "$slow_speed"
 recalculate
 snap no-intercept
-crop 0 668 "$panel_w" 125 09-no-intercept.png
+crop 0 "$y_course" "$panel_w" "$h_course" 09-no-intercept.png
 
 log "done: $out"

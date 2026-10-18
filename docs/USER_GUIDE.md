@@ -138,6 +138,12 @@ Instead of a drift, give the plugin the weather and sea it drifted in:
   (*leeway*): a rubber boat or inflatable is pushed harder than a wooden
   displacement hull. **Unknown / not specified** uses the rubber-boat
   figures, the more cautious choice.
+- **Leeway: include** — ticked (the default), the target drifts with the
+  current plus the wind's leeway. Untick it to use the current alone: the
+  leeway figures are not verified, so if you don't trust them you can
+  leave them out. The uncertainty ring then grows — the wind still pushes
+  the target, the plugin just doesn't estimate how much. Only available
+  with a GRIB file.
 - **Persons on board (optional)** — recorded with the case; it does not
   change the calculation.
 
@@ -179,7 +185,7 @@ invalid input shows the error in a dialog.)
 |---|---|
 | **Estimated position (now)** | Where the target is estimated to be at the time of the calculation. Shown in the latitude/longitude format chosen in OpenCPN's options. |
 | **Uncertainty radius** | How far from that estimate the target may be — see below. Drawn on the chart as a ring around the estimated position. |
-| **Drift applied** | Where the drift came from: the entered set and rate, "from GRIB file", or none. |
+| **Drift applied** | Where the drift came from: the entered set and rate, "from GRIB file", "from GRIB file, current only (leeway off)", or none. |
 | **Moved from report** | How far, and in which direction, the estimate has moved from the reported position. |
 | **Elapsed since report** | How long the target has been drifting (hours:minutes). |
 

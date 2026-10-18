@@ -86,6 +86,9 @@ by `test_position_parse`), `intercept_panel.{h,cpp}` (the UI), `datum_age.{h,cpp
    uses — so an operator who doesn't trust the unverified leeway model can fall
    back to current-only, and with no environmental data at all the route is
    just bearing-to-reported-position. Wind and drift are both optional inputs.
+   — **done:** the panel's "Leeway: include" checkbox (`Case::include_leeway`,
+   `ComputeAgedDatum(…, include_leeway)`); unticked, the leeway counts as
+   unknown in the uncertainty (`AgedDatum::leeway_applied`).
 5. Search patterns: expanding square, sector, parallel track, as routes
 
 **Wind/current source — decided: an optional operator-selected GRIB file.**
