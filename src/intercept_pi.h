@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "ocpn_plugin.h"
+#include "position_parse.h"
 
 class InterceptPanel;
 struct OwnShipState;
@@ -92,30 +93,6 @@ struct OwnShipState {
   double lon = 0.0;
   double sog_kt = 0.0;
 };
-
-/** Outcome of parsing one coordinate (latitude or longitude) from text. */
-struct PositionParseResult {
-  bool ok = false;
-  double degrees = 0.0;  // Valid only when ok is true. Signed: +N/+E, -S/-W.
-  wxString error;         // Valid only when ok is false.
-};
-
-/**
- * Parses a single latitude or longitude given as DD ("45.5"),
- * DDM ("45 30.5 N") or DMS ("45 30 30 N"). The caller states which axis
- * is expected via is_latitude, since that fixes both the valid hemisphere
- * letters (N/S vs E/W) and the degree range (0-90 vs 0-180).
- */
-PositionParseResult ParseCoordinate(const wxString& text, bool is_latitude);
-
-/**
- * Splits free-form position text into a latitude and a longitude part. A
- * comma is the preferred separator ("45 30.5 N, 015 20.3 E"); without one,
- * the split falls right after the first N/S hemisphere letter. Returns false
- * if it cannot find two non-empty parts.
- */
-bool SplitPosition(const wxString& text, wxString* lat_text,
-                   wxString* lon_text);
 
 /** The craft-type labels offered in the input panel, in menu order. */
 std::vector<wxString> CraftTypeLabels();

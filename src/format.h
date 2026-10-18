@@ -1,5 +1,5 @@
 /******************************************************************************
- * Intercept plugin for OpenCPN -- number/coordinate formatting.
+ * Intercept plugin for OpenCPN -- number formatting.
  *
  * Copyright (C) 2026 momo
  * License: GPLv3+  (see COPYING)
@@ -13,21 +13,6 @@
 // Free functions only, over plain doubles and std::string -- no wxWidgets
 // dependency, so this is usable from a standalone CTest binary and from
 // the GUI readout alike (Next #2a in CLAUDE.md).
-
-// Decimal degrees: "<abs value, 6 decimals> <hemisphere>", e.g.
-// "34.500000 N", "118.250000 W". Zero is reported as N / E.
-std::string FormatLatDD(double lat_deg);
-std::string FormatLonDD(double lon_deg);
-
-// Degrees + decimal minutes: "<deg> <mm.mmm>' <hemisphere>", e.g.
-// "34 30.000' N".
-std::string FormatLatDDM(double lat_deg);
-std::string FormatLonDDM(double lon_deg);
-
-// Degrees, minutes, decimal seconds: "<deg> <mm> <ss.s>\" <hemisphere>",
-// e.g. "34 30 45.0\" N".
-std::string FormatLatDMS(double lat_deg);
-std::string FormatLonDMS(double lon_deg);
 
 // Bearing normalized to [0, 360) and formatted to 1 decimal, e.g. "45.0".
 // An input of 360.0 (or anything that rounds up to it) formats as "0.0".

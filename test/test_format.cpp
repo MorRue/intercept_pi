@@ -31,27 +31,6 @@ void CheckEq(const std::string& actual, const char* expected,
 }  // namespace
 
 int main() {
-  // -------- DD --------
-  CheckEq(FormatLatDD(34.5), "34.500000 N", "DD: positive lat -> N");
-  CheckEq(FormatLatDD(-33.867), "33.867000 S", "DD: negative lat -> S");
-  CheckEq(FormatLatDD(0.0), "0.000000 N", "DD: zero lat -> N");
-  CheckEq(FormatLonDD(151.207), "151.207000 E", "DD: positive lon -> E");
-  CheckEq(FormatLonDD(-118.25), "118.250000 W", "DD: negative lon -> W");
-  CheckEq(FormatLonDD(0.0), "0.000000 E", "DD: zero lon -> E");
-
-  // -------- DDM --------
-  CheckEq(FormatLatDDM(34.5), "34 30.000' N", "DDM: positive lat");
-  CheckEq(FormatLatDDM(-33.5), "33 30.000' S", "DDM: negative lat -> S");
-  CheckEq(FormatLonDDM(-118.75), "118 45.000' W", "DDM: negative lon -> W");
-  CheckEq(FormatLonDDM(0.0), "0 00.000' E", "DDM: zero lon -> E");
-
-  // -------- DMS --------
-  // 34.5125 deg = 34 deg, 0.5125*60 = 30.75 min = 30 min, 0.75*60 = 45.0 sec.
-  CheckEq(FormatLatDMS(34.5125), "34 30 45.0\" N", "DMS: positive lat");
-  CheckEq(FormatLatDMS(-34.5125), "34 30 45.0\" S", "DMS: negative lat -> S");
-  CheckEq(FormatLonDMS(-118.75), "118 45 00.0\" W", "DMS: negative lon -> W");
-  CheckEq(FormatLonDMS(0.0), "0 00 00.0\" E", "DMS: zero lon -> E");
-
   // -------- Bearing --------
   CheckEq(FormatBearingDeg(0.0), "0.0", "bearing: zero");
   CheckEq(FormatBearingDeg(45.04), "45.0", "bearing: plain rounding");

@@ -15,7 +15,6 @@
 #include <wx/log.h>
 
 #include <algorithm>
-#include <cmath>
 #include <exception>
 #include <initializer_list>
 #include <vector>
@@ -39,6 +38,14 @@ wxStaticText* AddRow(wxWindow* parent, wxFlexGridSizer* grid,
 // format.h returns std::string kept clear of wxWidgets; wxString::Format's
 // varargs do not accept std::string, so route through here.
 wxString Wx(const std::string& s) { return wxString(s.c_str(), wxConvUTF8); }
+
+// A position in the latitude/longitude format chosen in OpenCPN's options
+// (degrees + decimal minutes, decimal degrees, or degrees-minutes-seconds),
+// exactly as OpenCPN itself shows positions. ParseCoordinate() reads all
+// three back, so a shown position can be copied into an input field.
+wxString FormatPosition(double lat, double lon) {
+  return toSDMM_PlugIn(1, lat) + wxT(", ") + toSDMM_PlugIn(2, lon);
+}
 
 // Parses the free-form "lat, lon" text; on failure fills *error and returns
 // false. The caller decides how to show it.
@@ -437,9 +444,7 @@ void InterceptPanel::OnLockToggled(wxCommandEvent& WXUNUSED(event)) {
   // operator adjusts a value rather than typing one from scratch.
   if (auto fix = m_plugin ? m_plugin->LiveFix() : std::nullopt) {
     if (own_pos_manual && m_own_pos_ctrl->IsEmpty()) {
-      m_own_pos_ctrl->SetValue(wxString::Format(
-          "%.5f %c, %.5f %c", std::fabs(fix->lat), fix->lat >= 0 ? 'N' : 'S',
-          std::fabs(fix->lon), fix->lon >= 0 ? 'E' : 'W'));
+      m_own_pos_ctrl->SetValue(FormatPosition(fix->lat, fix->lon));
     }
     if (own_sog_manual && m_own_sog_ctrl->GetValue() == 0.0) {
       m_own_sog_ctrl->SetValue(fix->sog_kt);
@@ -713,9 +718,7 @@ void InterceptPanel::FitToScreen() {
 
 void InterceptPanel::ShowOutputs(const Case& c,
                                  const std::optional<OwnShipState>& own) {
-  m_out_datum->SetLabel(wxString::Format("%s, %s",
-                                         Wx(FormatLatDDM(c.aged_lat)),
-                                         Wx(FormatLonDDM(c.aged_lon))));
+  m_out_datum->SetLabel(FormatPosition(c.aged_lat, c.aged_lon));
 
   if (c.has_manual_drift) {
     m_out_drift->SetLabel(wxString::Format(_("%s deg, %.1f kt (entered)"),
@@ -753,9 +756,7 @@ void InterceptPanel::ShowOutputs(const Case& c,
   if (c.intercept_solved) {
     // The target keeps drifting during the transit -- steer to where it will
     // be, not where it is now.
-    m_out_intercept->SetLabel(wxString::Format(
-        "%s, %s", Wx(FormatLatDDM(c.intercept_lat)),
-        Wx(FormatLonDDM(c.intercept_lon))));
+    m_out_intercept->SetLabel(FormatPosition(c.intercept_lat, c.intercept_lon));
     m_out_bearing->SetLabel(wxString::Format(
         _("%s deg"), Wx(FormatBearingDeg(c.intercept_bearing_deg))));
     m_out_distance->SetLabel(wxString::Format(

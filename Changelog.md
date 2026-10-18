@@ -13,6 +13,11 @@ All notable changes to the Intercept plugin. This project follows
   never opens a dialog: if an input is invalid, or a position is still being
   typed, it skips that run, keeps the last result on the chart and shows the
   reason in red under the row.
+- Position inputs also accept degree, minute and second marks
+  (`45° 30.5' N`, `45° 30' 30" N`), so a position copied from OpenCPN
+  (for example from a mark's properties) can be pasted straight in.
+- Unit tests for position parsing (`test_position_parse`) -- the parser had
+  none before.
 
 ### Fixed
 - Recalculating (by hand, automatically, or by toggling a display checkbox)
@@ -27,6 +32,12 @@ All notable changes to the Intercept plugin. This project follows
   instead of running off the bottom edge. Scrolling with the mouse wheel
   over a number field or the craft dropdown scrolls the panel rather than
   changing the value, unless you have clicked into that field.
+- Positions in the panel (estimated position, intercept point, and the
+  own-ship field when it is unlocked) are shown in the latitude/longitude
+  format chosen in OpenCPN's options -- degrees and decimal minutes,
+  decimal degrees, or degrees-minutes-seconds -- exactly as OpenCPN shows
+  positions everywhere else. Before, they were always degrees and decimal
+  minutes.
 
 ## [0.1.0-alpha] — 2026-09-04
 

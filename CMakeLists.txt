@@ -120,10 +120,20 @@ if (wxWidgets_FOUND)
                  src/route_helper.cpp)
   target_include_directories(test_route_helper PRIVATE src)
   add_test(NAME route_helper_test COMMAND test_route_helper)
+
+  # -------- Standalone position-parsing test --------
+  #
+  # position_parse.{h,cpp} only need wxBase (wxString), like test_datum_age.
+  add_executable(test_position_parse test/test_position_parse.cpp
+                 src/position_parse.cpp)
+  target_include_directories(test_position_parse PRIVATE src)
+  target_compile_definitions(test_position_parse PRIVATE wxUSE_GUI=0)
+  target_link_libraries(test_position_parse ${wxWidgets_LIBRARIES})
+  add_test(NAME position_parse_test COMMAND test_position_parse)
 else ()
   message(WARNING
           "wxWidgets (base) not found; skipping test_grib_reader, "
-          "test_datum_age, and test_reference_leeway")
+          "test_datum_age, test_reference_leeway and test_position_parse")
 endif ()
 
 add_subdirectory("opencpn-libs/${PKG_API_LIB}")

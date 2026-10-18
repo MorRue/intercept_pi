@@ -49,8 +49,9 @@ non-modal window carrying the case inputs and the computed course to steer;
 [Recalculate] ages the datum, computes bearing/distance/ETA, and draws a
 "Datum" mark plus an activatable "Course to steer" route on the chart.
 
-`src/`: `intercept_pi.{h,cpp}` (plugin entry points, `Case`, coordinate
-parsing), `intercept_panel.{h,cpp}` (the UI), `datum_age.{h,cpp}` +
+`src/`: `intercept_pi.{h,cpp}` (plugin entry points, `Case`),
+`position_parse.{h,cpp}` (typed lat/lon → degrees; standalone, unit-tested
+by `test_position_parse`), `intercept_panel.{h,cpp}` (the UI), `datum_age.{h,cpp}` +
 `grib_reader.{h,cpp}` (datum ageing), `intercept.{h,cpp}` (course to steer),
 `format.{h,cpp}` (output formatting), `route_helper.{h,cpp}`, `portability.h`,
 `plug_utils` (icons). ShipDriver's AIS maker and simulator GUI were deleted.
@@ -255,7 +256,11 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      focus — on GTK the wheel otherwise changes their value while scrolling.
      Position but no speed → bearing + distance, no ETA;
      no position at all → datum only. Number formatting is pure
-     (`format.{h,cpp}`) and unit-tested.
+     (`format.{h,cpp}`) and unit-tested. **Positions are shown with
+     OpenCPN's own `toSDMM_PlugIn()`** (`FormatPosition()` in the panel), so
+     they follow the lat/lon format the user picked in OpenCPN; that only
+     works inside OpenCPN, so it has no unit test. `ParseCoordinate()` reads
+     every format it prints (° ' " are treated as separators).
    - **(b) On the chart** *(done in the v0.1 PR)*, all on fixed GUIDs,
      delete-before-add, removed on `DeInit`:
      - **"Target" mark** at the reported position (left where reported;

@@ -74,6 +74,8 @@ set(SRC
     src/format.cpp
     src/route_helper.h
     src/route_helper.cpp
+    src/position_parse.h
+    src/position_parse.cpp
     src/plug_utils.cpp
     src/plug_utils.h
 )

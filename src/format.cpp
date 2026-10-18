@@ -22,47 +22,7 @@ std::string FormatBuf(const char* fmt, ...) {
   return std::string(buf);
 }
 
-std::string FormatDD(double value_deg, char pos_hemi, char neg_hemi) {
-  const char hemi = value_deg < 0.0 ? neg_hemi : pos_hemi;
-  return FormatBuf("%.6f %c", std::fabs(value_deg), hemi);
-}
-
-std::string FormatDDM(double value_deg, char pos_hemi, char neg_hemi) {
-  const char hemi = value_deg < 0.0 ? neg_hemi : pos_hemi;
-  const double a = std::fabs(value_deg);
-  const int deg = static_cast<int>(a);
-  const double min = (a - deg) * 60.0;
-  return FormatBuf("%d %06.3f' %c", deg, min, hemi);
-}
-
-std::string FormatDMS(double value_deg, char pos_hemi, char neg_hemi) {
-  const char hemi = value_deg < 0.0 ? neg_hemi : pos_hemi;
-  const double a = std::fabs(value_deg);
-  const int deg = static_cast<int>(a);
-  const double min_full = (a - deg) * 60.0;
-  const int min = static_cast<int>(min_full);
-  const double sec = (min_full - min) * 60.0;
-  return FormatBuf("%d %02d %04.1f\" %c", deg, min, sec, hemi);
-}
-
 }  // namespace
-
-std::string FormatLatDD(double lat_deg) { return FormatDD(lat_deg, 'N', 'S'); }
-std::string FormatLonDD(double lon_deg) { return FormatDD(lon_deg, 'E', 'W'); }
-
-std::string FormatLatDDM(double lat_deg) {
-  return FormatDDM(lat_deg, 'N', 'S');
-}
-std::string FormatLonDDM(double lon_deg) {
-  return FormatDDM(lon_deg, 'E', 'W');
-}
-
-std::string FormatLatDMS(double lat_deg) {
-  return FormatDMS(lat_deg, 'N', 'S');
-}
-std::string FormatLonDMS(double lon_deg) {
-  return FormatDMS(lon_deg, 'E', 'W');
-}
 
 std::string FormatBearingDeg(double bearing_deg) {
   double normalized = std::fmod(bearing_deg, 360.0);
