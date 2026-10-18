@@ -40,6 +40,11 @@ screenshots, and how to remove it, in
 
 Needs OpenCPN 5.8 or newer (see Platform support below).
 
+## Using it
+
+What every field, result and chart object means, with a worked example:
+[**docs/USER_GUIDE.md**](docs/USER_GUIDE.md).
+
 ## Building
 
 Requires wxWidgets 3.2, CMake and a C++ compiler.
