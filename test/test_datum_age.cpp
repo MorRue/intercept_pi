@@ -117,20 +117,23 @@ int main(int argc, char** argv) {
     Check(aged.elapsed.GetSeconds().ToLong() == 3600,
           "manual: elapsed is 1 hour");
 
-    // Entered set & drift: current and leeway known (0.3 kt each), no wind.
+    // An entered set & drift is the operator's estimate, not data: both
+    // components stay unknown, so it is never tighter than a GRIB.
     Check(aged.source == DriftSource::kManual, "manual: source is manual");
     DatumUncertainty u =
         ComputeDatumUncertainty(aged, "Wooden boat (displacement hull)", 1.0);
-    Check(std::fabs(u.dve_kt - std::sqrt(0.3 * 0.3 + 0.3 * 0.3)) < 1e-9,
-          "manual uncertainty: DVe from known current + leeway");
+    Check(std::fabs(u.dve_kt - std::sqrt(0.5 * 0.5 + 0.5 * 0.5)) < 1e-9,
+          "manual uncertainty: both components unknown");
     Check(u.divergence_nm == 0.0,
           "manual uncertainty: no separate leeway, so no divergence term");
 
-    // Missing data must widen the circle, never shrink it.
-    AgedDatum unknown = aged;
-    unknown.source = DriftSource::kNone;
-    Check(ComputeDatumUncertainty(unknown, "", 1.0).radius_nm > u.radius_nm,
-          "uncertainty: no drift data gives a larger radius than manual");
+    AgedDatum full_grib = aged;
+    full_grib.source = DriftSource::kGrib;
+    full_grib.wind_every_step = true;
+    full_grib.current_every_step = true;
+    Check(u.dve_kt >
+              ComputeDatumUncertainty(full_grib, "", 1.0).dve_kt,
+          "manual uncertainty: wider than a GRIB with wind and current");
   }
 
   // (3) GRIB-sourced: fixture (a) from the GribReader test (10 m wind only,

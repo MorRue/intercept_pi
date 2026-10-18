@@ -309,10 +309,16 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
   (`datum_age.{h,cpp}`) fills `Case::uncertainty` in `FinalizeDatum()`:
   IAMSAR `E = √(X² + De²)`, `DVe = √(ASWDVe² + TWCe² + LWe²)` (the
   ASWDVe term was missing from the original plan), plus a leeway-divergence
-  allowance `2·L·sin(θ/2)` because the datum is pure downwind. Each drift
-  component gets 0.3 kt when the data covers it and 0.5 kt when it doesn't
-  (`AgedDatum::source` / `wind_every_step` / `current_every_step`), so missing
-  data widens the circle. `X` is a fixed 1 NM for now
+  allowance `2·L·sin(θ/2)` because the datum is pure downwind, with L the
+  *net* leeway displacement (`AgedDatum::leeway_nm`), not its path. Current
+  (TWCe) and leeway (LWe) get 0.3 kt when the GRIB covers them at every step
+  and 0.5 kt when it doesn't (`AgedDatum::source` / `wind_every_step` /
+  `current_every_step`); the wind term (ASWDVe, 0.3 kt) only adds when there
+  is wind data. A hand-entered set & drift is not data — both components
+  stay at 0.5 kt, so it never comes out tighter than a GRIB. Missing data
+  widens the circle. While the "Estimated position" mark is OpenCPN's active
+  waypoint it is moved and resized in place (`UpdateSingleWaypointEx`) rather
+  than kept, so its ring never goes stale. `X` is a fixed 1 NM for now
   (`kAssumedInitialPositionErrorNm`) — a panel input is the natural next
   step. Drawn as a range ring on the "Estimated position" mark
   (`AddSingleWaypointEx`, name kept visible explicitly), spacing converted

@@ -737,12 +737,14 @@ void InterceptPanel::ShowOutputs(const Case& c,
   }
   m_out_uncertainty->SetLabel(uncertainty);
 
-  if (c.has_manual_drift) {
+  // Same priority as ComputeAgedDatum: a GRIB file wins over entered drift
+  // (whose field is only disabled, not cleared, while a GRIB is set).
+  if (!c.grib_file_path.IsEmpty()) {
+    m_out_drift->SetLabel(_("from GRIB file"));
+  } else if (c.has_manual_drift) {
     m_out_drift->SetLabel(wxString::Format(_("%s deg, %.1f kt (entered)"),
                                            Wx(FormatBearingDeg(c.manual_set_deg)),
                                            c.manual_drift_kt));
-  } else if (!c.grib_file_path.IsEmpty()) {
-    m_out_drift->SetLabel(_("from GRIB file"));
   } else {
     m_out_drift->SetLabel(_("none (datum = reported position)"));
   }

@@ -347,23 +347,27 @@ bool intercept_pi::UpdateChartObjects(const Case& c,
     }
   }
 
-  if (active_point == kEstimatedMarkGuid) {
-    kept = true;
-  } else {
-    g = kEstimatedMarkGuid;
-    DeleteSingleWaypoint(g);
-    if (show_estimated) {
-      // The uncertainty circle is a range ring on this mark, so OpenCPN
-      // draws it -- no custom chart drawing (see CLAUDE.md).
-      const double radius_nm = c.uncertainty.radius_nm;
-      PlugIn_Waypoint_Ex estimated(
-          c.aged_lat, c.aged_lon, wxT("circle"), _("Estimated position"),
-          kEstimatedMarkGuid, /*ScaMin=*/1e9,
-          // The _Ex call hides the name unless asked; the plain one showed it.
-          /*bNameVisible=*/true, /*nRanges=*/radius_nm > 0.0 ? 1 : 0,
-          RangeRingStepForUnits(radius_nm, OpenCpnRangeRingUnits()),
-          kUncertaintyRingColour);
-      AddSingleWaypointEx(&estimated, /*b_permanent=*/false);
+  {
+    // The uncertainty circle is a range ring on this mark, so OpenCPN draws
+    // it -- no custom chart drawing (see CLAUDE.md).
+    const double radius_nm = c.uncertainty.radius_nm;
+    PlugIn_Waypoint_Ex estimated(
+        c.aged_lat, c.aged_lon, wxT("circle"), _("Estimated position"),
+        kEstimatedMarkGuid, /*ScaMin=*/1e9,
+        // The _Ex call hides the name unless asked; the plain one showed it.
+        /*bNameVisible=*/true, /*nRanges=*/radius_nm > 0.0 ? 1 : 0,
+        RangeRingStepForUnits(radius_nm, OpenCpnRangeRingUnits()),
+        kUncertaintyRingColour);
+    if (active_point == kEstimatedMarkGuid) {
+      // Being navigated to: move it and resize its ring in place.
+      // UpdateSingleWaypointEx edits the same OpenCPN object, so navigation
+      // carries on -- deleting it would cancel it, and a frozen mark would
+      // leave a stale, too-small ring on the chart.
+      UpdateSingleWaypointEx(&estimated);
+    } else {
+      g = kEstimatedMarkGuid;
+      DeleteSingleWaypoint(g);
+      if (show_estimated) AddSingleWaypointEx(&estimated, /*b_permanent=*/false);
     }
   }
 

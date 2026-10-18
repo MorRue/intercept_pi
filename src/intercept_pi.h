@@ -150,8 +150,11 @@ private:
    * An object OpenCPN is navigating with (the active route, or a mark that
    * is the active waypoint) is left untouched: deleting it would cancel the
    * navigation, and api-18 has no call to re-activate a route. The route and
-   * the "Intercept" mark are kept or replaced together. Returns true if
-   * anything was kept.
+   * the "Intercept" mark are kept or replaced together. The exception is the
+   * "Estimated position" mark: it carries the uncertainty ring, so when it is
+   * the active waypoint it is moved and resized in place
+   * (UpdateSingleWaypointEx) instead of kept. Returns true if anything was
+   * kept.
    */
   bool UpdateChartObjects(const Case& c,
                           const std::optional<OwnShipState>& own,

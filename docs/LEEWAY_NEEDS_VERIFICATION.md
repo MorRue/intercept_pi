@@ -151,7 +151,7 @@ The ring around the estimated position has radius **E + divergence**:
   pinned by `test/test_reference_leeway.cpp`). IAMSAR's Y (search facility
   error) is left out — there is no search facility in this calculation.
 - **Divergence** — the code uses pure downwind, so IAMSAR's left and right
-  datums both lie `2 · L · sin(θ/2)` from it (L = leeway distance, θ = the
+  datums both lie `2 · L · sin(θ/2)` from it (L = the net leeway displacement, θ = the
   divergence angle). Adding that to E makes a circle that still contains both
   datums' E circles. Checked against App. Q: both published datums lie
   20.6 NM from the pure-downwind datum, which is exactly this offset.
@@ -162,9 +162,10 @@ The ring around the estimated position has radius **E + divergence**:
 | value | used | why it's a guess |
 |---|---|---|
 | X, initial position error | 1 NM, fixed | a GPS-fixed report is far better, a DR position far worse (App. Q: 29.6 NM); should become a panel input |
-| ASWDVe / TWCe / LWe when the data covers that component | 0.3 kt each | IAMSAR's App. Q values; GRIB currents may deserve a larger TWCe (App. Q's computed current had 0.42) |
-| the same when the data does not (no GRIB / no current in the GRIB / no wind) | 0.5 kt | a deliberately wider guess so missing data grows the circle |
-| manually entered set & drift | TWCe + LWe 0.3 kt, no divergence | it is a total-drift estimate with no separate leeway |
+| TWCe / LWe when the GRIB covers current / wind at every step | 0.3 kt each | IAMSAR's App. Q values; GRIB currents may deserve a larger TWCe (App. Q's computed current had 0.42) |
+| ASWDVe (the wind's own error) | 0.3 kt with GRIB wind, else 0 | without wind data the unknown-leeway 0.5 kt stands for it |
+| TWCe / LWe when the data does not cover them (no GRIB, no current or wind in it) | 0.5 kt | a deliberately wider guess so missing data grows the circle |
+| manually entered set & drift | TWCe + LWe 0.5 kt (unknown), no divergence | an estimate, not data — it must not come out tighter than a GRIB; it has no separate leeway to diverge |
 | divergence angle | wooden 50°, everything else 30° | App. Q fishing vessel ±50°; top of the liferaft range ±15–30° |
 
 ## Sources

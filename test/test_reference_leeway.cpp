@@ -60,6 +60,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -131,7 +133,7 @@ void AppendZeros(std::vector<unsigned char>* buf, size_t n) {
 std::vector<unsigned char> BuildGribMessage(
     int discipline, int category, int number, int level_type,
     double level_value, float ref_value, double la1, double lo1, double di,
-    double dj) {
+    double dj, int forecast_hours = 0) {
   std::vector<unsigned char> sec1;
   AppendU(&sec1, 19, 4);   // Section length.
   AppendU(&sec1, 1, 1);    // Section number.
@@ -172,7 +174,7 @@ std::vector<unsigned char> BuildGribMessage(
   AppendU(&sec4, number, 1);
   AppendZeros(&sec4, 6);  // Generating process / data cutoff fields.
   AppendU(&sec4, 1, 1);   // Time range unit: hours.
-  AppendU(&sec4, 0, 4);   // Forecast time: 0 (analysis).
+  AppendU(&sec4, forecast_hours, 4);  // Forecast time, in hours.
   AppendU(&sec4, level_type, 1);
   AppendS(&sec4, 0, 1);  // Level scale factor.
   AppendS(&sec4, static_cast<int64_t>(std::llround(level_value)), 4);
@@ -405,6 +407,50 @@ int main() {
           "reference example: right datum lies the divergence offset away");
     Check(LookupLeewayDivergenceDeg("Wooden boat (displacement hull)") == 50.0,
           "reference example: a wooden hull gets the example's +/-50 deg");
+  }
+
+  // (d) Leeway distance is the net displacement, not the path: a wind that
+  // reverses undoes its own leeway, and so adds no divergence. Wind from
+  // 090 for the record at +0 h, from 270 at +2 h (GribReader takes the
+  // nearest record), 4 h of 30-min steps at 20 kt -> 0.36 NM of leeway per
+  // step. Steps at 0 and 0.5 h use the first record, 1.5-3.5 h the second,
+  // and the 1.0 h step is equidistant, so the net is 2 or 4 steps (0.72 or
+  // 1.44 NM) depending on how that tie breaks -- summing the path instead
+  // would give all 8 steps, 2.88 NM.
+  {
+    const double lat = 36.0, lon = 15.0;
+    const float wind_ms = static_cast<float>(20.0 / kMetersPerSecondToKnots);
+    // Wind FROM 090 blows toward the west: u = -speed; FROM 270: u = +speed.
+    std::vector<unsigned char> buf;
+    for (const auto& rec : {std::make_pair(0, -wind_ms),
+                            std::make_pair(2, wind_ms)}) {
+      std::vector<unsigned char> u = BuildGribMessage(
+          0, 2, 2, 103, 10.0, rec.second, lat, lon, 10.0, 10.0, rec.first);
+      std::vector<unsigned char> v = BuildGribMessage(
+          0, 2, 3, 103, 10.0, 0.0f, lat, lon, 10.0, 10.0, rec.first);
+      buf.insert(buf.end(), u.begin(), u.end());
+      buf.insert(buf.end(), v.begin(), v.end());
+    }
+    wxString temp_path = wxFileName::CreateTempFileName("turning_wind");
+    FILE* f = std::fopen(temp_path.mb_str(), "wb");
+    Check(f != nullptr, "turning wind: temp GRIB written");
+    if (f) {
+      std::fwrite(buf.data(), 1, buf.size(), f);
+      std::fclose(f);
+      GribReader grib{wxFileName(temp_path)};
+      // 2000-01-25 21:45 UTC, the messages' reference time.
+      const wxDateTime start(static_cast<time_t>(948836700));
+      AgedDatum aged = ComputeAgedDatum(lat, lon, start,
+                                        start + wxTimeSpan::Hours(4), "",
+                                        &grib, ManualSetAndDrift());
+      const double step_nm = 0.036 * 20.0 * 0.5;
+      Check(aged.leeway_nm > 2 * step_nm - 0.01 &&
+                aged.leeway_nm < 4 * step_nm + 0.01,
+            "turning wind: leeway distance is the net displacement");
+      Check(aged.wind_every_step && !aged.current_every_step,
+            "turning wind: wind at every step, no current");
+    }
+    wxRemoveFile(temp_path);
   }
 
   if (g_failures > 0) {

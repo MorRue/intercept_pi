@@ -65,13 +65,17 @@ struct AgedDatum {
 
   // What the drift was built from -- the uncertainty estimate depends on it.
   DriftSource source = DriftSource::kNone;
-  // kGrib only: the GRIB supplied wind / current at every integration step.
+  // kGrib only: the GRIB supplied wind / current at every integration step
+  // (false when no step ran, since then nothing was sampled).
   // A step without one (grid doesn't cover the position, no such field)
   // drifts on what is left, so that component counts as unknown.
   bool wind_every_step = false;
   bool current_every_step = false;
-  // Distance covered by the leeway component alone (NM), summed over the
-  // steps; what the leeway divergence widening scales with.
+  // How far the leeway component alone moved the target (NM): the length of
+  // the summed leeway vector, not of its path. Divergence turns every step's
+  // leeway by the same angle, which turns the sum by it too, so this is what
+  // the divergence widening scales with -- a wind that backs and undoes its
+  // own leeway adds no divergence.
   double leeway_nm = 0.0;
 };
 
@@ -145,13 +149,14 @@ struct DatumUncertainty {
 };
 
 /**
- * Uncertainty around an aged datum. Each drift component gets IAMSAR's
- * default probable error when it is known (0.3 kt each for the wind's
- * effect, the current and the leeway, as in the Vol II App. Q example) and
- * a larger one when it is not (0.5 kt for an unknown current, and for
- * unknown leeway), so missing data widens the circle instead of shrinking
- * it. A manually entered set & drift counts as known current + leeway with
- * no separate wind term. initial_error_nm is X.
+ * Uncertainty around an aged datum. The water current (TWCe) and the leeway
+ * (LWe) each get IAMSAR's default probable error, 0.3 kt (as in the Vol II
+ * App. Q example), when the GRIB covers them at every step, and 0.5 kt when
+ * it doesn't -- so missing data widens the circle instead of shrinking it.
+ * The wind's own error (ASWDVe, 0.3 kt) only adds when the GRIB had wind;
+ * without wind data the unknown-leeway term already stands for it. A
+ * manually entered set & drift is not data: both components stay unknown.
+ * initial_error_nm is X.
  */
 DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
                                          const wxString& craft_type,

@@ -152,8 +152,13 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
   double lon = reported_lon;
   wxDateTime step_time = time_of_report;
   long remaining_seconds = total_seconds;
-  bool wind_every_step = true;
-  bool current_every_step = true;
+  // Cleared by the first step that lacks wind / current; with no step run
+  // at all nothing was sampled, so nothing counts as known.
+  result.wind_every_step = grib != nullptr && remaining_seconds > 0;
+  result.current_every_step = result.wind_every_step;
+  // Net leeway displacement (NM east, NM north).
+  double leeway_east_nm = 0.0;
+  double leeway_north_nm = 0.0;
 
   while (remaining_seconds > 0) {
     long this_step_seconds = std::min(step_seconds, remaining_seconds);
@@ -164,8 +169,8 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
     if (grib) {
       EnvSample wind = grib->LookupWind(lat, lon, step_time);
       EnvSample current = grib->LookupCurrent(lat, lon, step_time);
-      if (!wind.available) wind_every_step = false;
-      if (!current.available) current_every_step = false;
+      if (!wind.available) result.wind_every_step = false;
+      if (!current.available) result.current_every_step = false;
 
       double leeway_speed_kt = 0.0;
       double leeway_dir_deg = 0.0;
@@ -174,7 +179,10 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
             std::max(0.0, leeway.speed_pct_of_wind * wind.speed_kt +
                               leeway.speed_constant_kt);
         leeway_dir_deg = NormalizeDegrees(wind.direction_deg + 180.0);
-        result.leeway_nm += leeway_speed_kt * (this_step_seconds / 3600.0);
+        const double leeway_step_nm =
+            leeway_speed_kt * (this_step_seconds / 3600.0);
+        leeway_east_nm += leeway_step_nm * std::sin(ToRad(leeway_dir_deg));
+        leeway_north_nm += leeway_step_nm * std::cos(ToRad(leeway_dir_deg));
       }
 
       if (current.available && wind.available) {
@@ -208,10 +216,7 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
 
   result.lat = lat;
   result.lon = lon;
-  if (grib) {
-    result.wind_every_step = wind_every_step;
-    result.current_every_step = current_every_step;
-  }
+  result.leeway_nm = std::hypot(leeway_east_nm, leeway_north_nm);
   return result;
 }
 
@@ -244,12 +249,11 @@ DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
   double lwe = kUnknownComponentErrorKt;
   switch (aged.source) {
     case DriftSource::kNone:
-      break;  // Nothing known about the drift: both components unknown.
     case DriftSource::kManual:
-      // An entered set & drift is the operator's estimate of the total --
-      // current and leeway together -- with no wind sample behind it.
-      twce = kKnownComponentErrorKt;
-      lwe = kKnownComponentErrorKt;
+      // Nothing known, or the operator's own estimate of the total drift:
+      // an entered set & drift has no data behind it, so it must not come
+      // out tighter than a GRIB does -- both components stay unknown. (It
+      // still moves the datum; it just doesn't narrow the circle.)
       break;
     case DriftSource::kGrib:
       if (aged.wind_every_step) {
