@@ -42,6 +42,9 @@ All notable changes to the Intercept plugin. This project follows
   OpenCPN treats as deactivating the route.
 
 ### Changed
+- The chart mark at the reported position is labelled "Reported position"
+  instead of "Target" -- it marks where the target was reported, not where
+  it is.
 - Own ship: the speed's "lock" checkbox is now "use GPS speed", with a
   read-only field next to it showing the speed OpenCPN currently gets from
   the GPS ("--" when there is none), so you can see whether it is worth

@@ -276,7 +276,7 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      every format it prints (° ' " are treated as separators).
    - **(b) On the chart** *(done in the v0.1 PR)*, all on fixed GUIDs,
      delete-before-add, removed on `DeInit`:
-     - **"Target" mark** at the reported position (left where reported;
+     - **"Reported position" mark** at the reported position (left where reported;
        toggle "Show reported position");
      - **"Estimated position" mark** (circle) at the aged datum, where the
        target is estimated to be now (toggle "Show estimated position");

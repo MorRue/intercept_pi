@@ -311,7 +311,7 @@ bool intercept_pi::UpdateChartObjects(const Case& c,
                                       bool show_lines) {
   // Five objects, all delete-before-add on fixed GUIDs so a recalculation
   // replaces rather than piles up:
-  //   * "Target" mark  -- the reported position (show_target)
+  //   * "Reported position" mark -- where the target was reported (show_target)
   //   * "Estimated position" mark -- the aged datum, where the target is now
   //     (show_estimated)
   //   * "Intercept" mark -- where own-ship's course meets the target; drawn
@@ -341,8 +341,8 @@ bool intercept_pi::UpdateChartObjects(const Case& c,
     g = kTargetMarkGuid;
     DeleteSingleWaypoint(g);
     if (show_target) {
-      PlugIn_Waypoint target(c.lat, c.lon, wxT("activepoint"), _("Target"),
-                             kTargetMarkGuid);
+      PlugIn_Waypoint target(c.lat, c.lon, wxT("activepoint"),
+                             _("Reported position"), kTargetMarkGuid);
       AddSingleWaypoint(&target, /*b_permanent=*/false);
     }
   }

@@ -134,7 +134,7 @@ public:
   /** OpenCPN's live own-ship fix, or nullopt until the first one arrives. */
   std::optional<OwnShipState> LiveFix() const;
   /** Store the case and (re)draw the chart objects. show_target toggles the
-   *  "Target" mark at the reported position; show_estimated toggles the
+   *  "Reported position" mark; show_estimated toggles the
    *  "Estimated position" mark at the drifted-forward datum; show_lines
    *  toggles the drift track, the course-to-steer route and the "Intercept"
    *  mark at the route's far end. Returns true if a mark or the route was
@@ -147,7 +147,7 @@ public:
 private:
   /**
    * (Re)places the chart objects for the current case, each on a fixed GUID
-   * (delete-before-add): "Target" mark at the reported position, "Estimated
+   * (delete-before-add): "Reported position" mark, "Estimated
    * position" mark at the aged datum, "Target drift" track between them, and
    * (if own-ship is known) the "Course to steer" route with an "Intercept"
    * mark at its far end. Each show_* flag suppresses its object(s), deleting

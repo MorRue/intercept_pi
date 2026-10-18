@@ -107,7 +107,7 @@ private:
   wxCheckBox* m_lock_time;
   wxCheckBox* m_use_gps_pos;  // Checked: own-ship position from OpenCPN's GPS.
   wxCheckBox* m_use_gps_sog;  // Checked: own-ship speed from OpenCPN's GPS.
-  wxCheckBox* m_show_target;     // "Target" mark at the reported position.
+  wxCheckBox* m_show_target;     // "Reported position" mark.
   wxCheckBox* m_show_estimated;  // "Estimated position" mark at the datum.
   wxCheckBox* m_show_routes;     // Drift track + course-to-steer route.
 

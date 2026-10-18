@@ -372,8 +372,7 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
   m_show_target = new wxCheckBox(panel, wxID_ANY, _("Show reported position"));
   m_show_target->SetValue(true);
   m_show_target->SetToolTip(
-      _("Show or hide the 'Target' mark at the reported position on the "
-        "chart."));
+      _("Show or hide the 'Reported position' mark on the chart."));
   m_show_estimated =
       new wxCheckBox(panel, wxID_ANY, _("Show estimated position"));
   m_show_estimated->SetValue(true);
