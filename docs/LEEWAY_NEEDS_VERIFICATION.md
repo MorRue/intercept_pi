@@ -17,10 +17,10 @@ operational use.
 
 | thing | value / method in code |
 |---|---|
-| leeway speed, "wooden" craft_type | `0.04 × wind speed` (kt), no offset |
-| leeway speed, anything else (default) | `0.036 × wind speed` (kt), no offset |
+| leeway speed, `CraftType::kWooden` | `0.04 × wind speed` (kt), no offset, divergence ±50° |
+| leeway speed, rubber / unknown (default) | `0.036 × wind speed` (kt), no offset, divergence ±30° |
 | leeway direction | `wind FROM + 180°` — pure downwind, no divergence |
-| craft classification | `craft_type.Lower().Contains("wooden")` else default |
+| craft classification | the panel's craft dropdown entry → `CraftType` (by position, so translations can't break it); one table in `LookupLeewayCoefficients` |
 | drift | vector sum of current + leeway (`CombineVectors`) |
 | integration | 30-min rhumb-line steps (`AdvancePosition`), `kMaxSteps = 2000` |
 | Earth radius | `kEarthRadiusNm = 3440.065` |

@@ -248,7 +248,8 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     }
     ng->Add(plain(bp, _("Craft type:")), 0, wxALIGN_CENTER_VERTICAL);
     m_craft_choice = new wxChoice(bp, wxID_ANY);
-    for (const auto& label : CraftTypeLabels()) m_craft_choice->Append(label);
+    for (const auto& choice : CraftTypeChoices())
+      m_craft_choice->Append(choice.label);
     m_craft_choice->SetSelection(0);  // "Unknown / not specified"
     m_craft_choice->SetToolTip(
         _("The kind of object being tracked. Sets the leeway coefficient "
@@ -661,7 +662,11 @@ void InterceptPanel::DoRecalculate(bool automatic) {
   when.SetMinute(tod.GetMinute());
   when.SetSecond(0);
   c.time_of_report = when;
-  c.craft_type = m_craft_choice->GetStringSelection();
+  // By position, not label text: the label may be translated.
+  const std::vector<CraftChoice> craft_choices = CraftTypeChoices();
+  const int craft_sel = m_craft_choice->GetSelection();
+  if (craft_sel >= 0 && craft_sel < static_cast<int>(craft_choices.size()))
+    c.craft_type = craft_choices[craft_sel].type;
   c.pob = m_pob_ctrl->GetValue();
   c.grib_file_path = m_grib_path_ctrl->GetValue();
   double drift_kt = m_drift_ctrl->GetValue();

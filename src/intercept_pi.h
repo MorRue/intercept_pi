@@ -35,7 +35,7 @@ struct Case {
   double lat = 0.0;
   double lon = 0.0;
   wxDateTime time_of_report;
-  wxString craft_type;
+  CraftType craft_type = CraftType::kUnknown;
   int pob = 0;  // People on board -- recorded only, not used in any calc.
   wxString grib_file_path;  // Empty means no GRIB file was selected.
 
@@ -98,8 +98,14 @@ struct OwnShipState {
   double sog_kt = 0.0;
 };
 
-/** The craft-type labels offered in the input panel, in menu order. */
-std::vector<wxString> CraftTypeLabels();
+/** One craft-type dropdown entry: the leeway category and its label. */
+struct CraftChoice {
+  CraftType type;
+  wxString label;
+};
+
+/** The craft-type dropdown entries, in menu order; the first is the default. */
+std::vector<CraftChoice> CraftTypeChoices();
 
 class intercept_pi : public opencpn_plugin_118 {
 public:

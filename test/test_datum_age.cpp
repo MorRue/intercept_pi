@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     const wxDateTime now(static_cast<time_t>(7200));  // +2 hours.
 
     AgedDatum aged = ComputeAgedDatum(
-        lat, lon, time_of_report, now, "Wooden boat (displacement hull)",
+        lat, lon, time_of_report, now, CraftType::kWooden,
         /*grib=*/nullptr, ManualSetAndDrift());
 
     Check(aged.lat == lat, "zero-drift: aged lat equals reported lat");
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
     // circle grows with time even though the datum doesn't move.
     Check(aged.source == DriftSource::kNone, "zero-drift: source is none");
     DatumUncertainty u =
-        ComputeDatumUncertainty(aged, "Wooden boat (displacement hull)", 1.0);
+        ComputeDatumUncertainty(aged, CraftType::kWooden, 1.0);
     const double dve = std::sqrt(0.5 * 0.5 + 0.5 * 0.5);
     Check(std::fabs(u.dve_kt - dve) < 1e-9,
           "zero-drift uncertainty: DVe from two unknown components");
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
     manual.drift_kt = 5.0;
 
     AgedDatum aged = ComputeAgedDatum(
-        lat, lon, time_of_report, now, "Wooden boat (displacement hull)",
+        lat, lon, time_of_report, now, CraftType::kWooden,
         /*grib=*/nullptr, manual);
 
     const double distance_nm = manual.drift_kt * 1.0;  // 1 hour at 5 kt.
@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
     // components stay unknown, so it is never tighter than a GRIB.
     Check(aged.source == DriftSource::kManual, "manual: source is manual");
     DatumUncertainty u =
-        ComputeDatumUncertainty(aged, "Wooden boat (displacement hull)", 1.0);
+        ComputeDatumUncertainty(aged, CraftType::kWooden, 1.0);
     Check(std::fabs(u.dve_kt - std::sqrt(0.5 * 0.5 + 0.5 * 0.5)) < 1e-9,
           "manual uncertainty: both components unknown");
     Check(u.divergence_nm == 0.0,
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
     full_grib.wind_every_step = true;
     full_grib.current_every_step = true;
     Check(u.dve_kt >
-              ComputeDatumUncertainty(full_grib, "", 1.0).dve_kt,
+              ComputeDatumUncertainty(full_grib, CraftType::kUnknown, 1.0).dve_kt,
           "manual uncertainty: wider than a GRIB with wind and current");
   }
 
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
       const double lat = 35.0, lon = 15.0;
       const wxDateTime kValidTime(static_cast<time_t>(1788220800));
       const wxDateTime now = kValidTime + wxTimeSpan::Minutes(30);
-      const wxString craft_type = "Rubber boat (inflatable / RIB)";
+      const CraftType craft_type = CraftType::kRubber;
 
       EnvSample wind = grib.LookupWind(lat, lon, kValidTime);
       Check(wind.available,
@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
     manual.drift_kt = 3.0;
 
     AgedDatum aged = ComputeAgedDatum(
-        lat, lon, time_of_report, now, "Wooden boat (displacement hull)",
+        lat, lon, time_of_report, now, CraftType::kWooden,
         /*grib=*/nullptr, manual);
 
     Check(aged.lat == lat, "zero-elapsed: aged lat equals reported lat");
@@ -251,7 +251,7 @@ int main(int argc, char** argv) {
     manual.drift_kt = 5.0;
 
     AgedDatum aged = ComputeAgedDatum(
-        lat, lon, time_of_report, now, "Wooden boat (displacement hull)",
+        lat, lon, time_of_report, now, CraftType::kWooden,
         /*grib=*/nullptr, manual);
 
     const double distance_nm = manual.drift_kt * 1.0;  // 1 hour at 5 kt.
@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
     manual.drift_kt = 5.0;
 
     AgedDatum aged = ComputeAgedDatum(
-        lat, lon, time_of_report, now, "Wooden boat (displacement hull)",
+        lat, lon, time_of_report, now, CraftType::kWooden,
         /*grib=*/nullptr, manual);
 
     const double distance_nm = manual.drift_kt * 1.0;  // 1 hour at 5 kt.

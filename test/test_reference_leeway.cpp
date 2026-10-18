@@ -227,7 +227,7 @@ int main() {
   // no specific "fishing vessel" bucket, so this exercises the default
   // (non-"wooden") one -- the same bucket test_datum_age.cpp's GRIB case
   // uses.
-  const wxString craft_type = "Rubber boat (inflatable / RIB)";
+  const CraftType craft_type = CraftType::kRubber;
   const LeewayCoefficients coeffs = LookupLeewayCoefficients(craft_type);
   const auto leeway_kt = [&](double wind_kt) {
     return coeffs.speed_pct_of_wind * wind_kt + coeffs.speed_constant_kt;
@@ -358,7 +358,7 @@ int main() {
 
       AgedDatum aged = ComputeAgedDatum(
           eip_lat, eip_lon, time_of_report, now,
-          "Rubber boat (inflatable / RIB)", &grib,
+          CraftType::kRubber, &grib,
           ManualSetAndDrift());
 
       double distance_nm =
@@ -405,7 +405,7 @@ int main() {
     Check(std::fabs(DistanceNm(pure_lat, pure_lon, right_lat, right_lon) -
                     offset) < 0.5,
           "reference example: right datum lies the divergence offset away");
-    Check(LookupLeewayDivergenceDeg("Wooden boat (displacement hull)") == 50.0,
+    Check(LookupLeewayCoefficients(CraftType::kWooden).divergence_deg == 50.0,
           "reference example: a wooden hull gets the example's +/-50 deg");
   }
 
@@ -441,7 +441,7 @@ int main() {
       // 2000-01-25 21:45 UTC, the messages' reference time.
       const wxDateTime start(static_cast<time_t>(948836700));
       AgedDatum aged = ComputeAgedDatum(lat, lon, start,
-                                        start + wxTimeSpan::Hours(4), "",
+                                        start + wxTimeSpan::Hours(4), CraftType::kUnknown,
                                         &grib, ManualSetAndDrift());
       const double step_nm = 0.036 * 20.0 * 0.5;
       Check(aged.leeway_nm > 2 * step_nm - 0.01 &&

@@ -87,19 +87,23 @@ void CombineVectors(double speed1_kt, double dir1_deg, double speed2_kt,
   *out_dir_deg = NormalizeDegrees(ToDeg(std::atan2(x, y)));
 }
 
-LeewayCoefficients LookupLeewayCoefficients(const wxString& craft_type) {
-  if (craft_type.Lower().Contains("wooden")) {
-    return LeewayCoefficients{0.04, 0.0};
+LeewayCoefficients LookupLeewayCoefficients(CraftType craft) {
+  switch (craft) {
+    case CraftType::kWooden:
+      return LeewayCoefficients{0.04, 0.0, 50.0};
+    case CraftType::kRubber:
+    case CraftType::kUnknown:
+      break;
   }
   // 0.036 is mid-range for a light rubber hull per the leeway curves in
   // IAMSAR Vol II Fig N-2 / Allen & Plourde 1999 -- see
   // docs/LEEWAY_NEEDS_VERIFICATION.md. (0.36 was ~10x too large.)
-  return LeewayCoefficients{0.036, 0.0};  // Rubber-hulled, and the default.
+  return LeewayCoefficients{0.036, 0.0, 30.0};  // Rubber, and the default.
 }
 
 AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
                            const wxDateTime& time_of_report,
-                           const wxDateTime& now, const wxString& craft_type,
+                           const wxDateTime& now, CraftType craft,
                            const GribReader* grib,
                            const ManualSetAndDrift& manual) {
   AgedDatum result;
@@ -128,7 +132,7 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
   }
   result.source = grib ? DriftSource::kGrib : DriftSource::kManual;
 
-  const LeewayCoefficients leeway = LookupLeewayCoefficients(craft_type);
+  const LeewayCoefficients leeway = LookupLeewayCoefficients(craft);
 
   // Sanitise operator-entered set & drift once, before integrating: a
   // non-finite value (NaN from a bad text-field parse) drifts nothing
@@ -235,12 +239,8 @@ double DivergenceOffsetNm(double leeway_nm, double divergence_deg) {
   return 2.0 * leeway_nm * std::sin(ToRad(divergence_deg) / 2.0);
 }
 
-double LookupLeewayDivergenceDeg(const wxString& craft_type) {
-  return craft_type.Lower().Contains("wooden") ? 50.0 : 30.0;
-}
-
 DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
-                                         const wxString& craft_type,
+                                         CraftType craft,
                                          double initial_error_nm) {
   // Drift error per component: the wind's effect on drift (ASWDVe), the
   // water current (TWCe), the leeway (LWe).
@@ -270,8 +270,8 @@ DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
   const double hours = aged.elapsed.GetSeconds().ToDouble() / 3600.0;
   u.drift_error_nm = hours * u.dve_kt;
   u.e_nm = TotalProbableErrorNm(initial_error_nm, u.drift_error_nm);
-  u.divergence_nm =
-      DivergenceOffsetNm(aged.leeway_nm, LookupLeewayDivergenceDeg(craft_type));
+  u.divergence_nm = DivergenceOffsetNm(
+      aged.leeway_nm, LookupLeewayCoefficients(craft).divergence_deg);
   u.radius_nm = u.e_nm + u.divergence_nm;
   return u;
 }

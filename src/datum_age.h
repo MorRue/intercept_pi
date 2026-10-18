@@ -29,6 +29,13 @@ struct ManualSetAndDrift {
 };
 
 /**
+ * The craft categories the leeway model distinguishes. The panel maps its
+ * dropdown entry to one of these (CraftTypeChoices), so a translated label
+ * can't break the lookup.
+ */
+enum class CraftType { kUnknown, kRubber, kWooden };
+
+/**
  * Allen & Plourde-style leeway coefficients for one craft category:
  * downwind leeway speed (kt) = speed_pct_of_wind * 10 m wind speed (kt) +
  * speed_constant_kt. The figures LookupLeewayCoefficients() returns are
@@ -42,17 +49,18 @@ struct ManualSetAndDrift {
 struct LeewayCoefficients {
   double speed_pct_of_wind = 0.0;
   double speed_constant_kt = 0.0;
+  // Leeway diverges from downwind by up to +/- this, side unknown.
+  double divergence_deg = 0.0;
 };
 
 /**
- * Looks up leeway coefficients by craft_type, matched case-insensitively
- * against "rubber"/"wooden" so it survives the input labels changing or
- * (per CLAUDE.md, po/ being stale) an unmatched translation falling back
- * to English. A craft_type matching neither gets the rubber-hulled
- * (higher-leeway) coefficients -- the more cautious assumption for a
- * search when the craft is unknown.
+ * Leeway coefficients by craft. Wooden: 4 % of wind, +/-50 deg (the
+ * published fishing-vessel example). Rubber and unknown: 3.6 % of wind,
+ * +/-30 deg (liferaft range, Allen & Plourde 1999) -- an unknown craft gets
+ * the higher-leeway figures, the more cautious assumption for a search.
+ * Unverified -- see docs/LEEWAY_NEEDS_VERIFICATION.md.
  */
-LeewayCoefficients LookupLeewayCoefficients(const wxString& craft_type);
+LeewayCoefficients LookupLeewayCoefficients(CraftType craft);
 
 /** Where ComputeAgedDatum took the drift from. */
 enum class DriftSource { kNone, kManual, kGrib };
@@ -86,7 +94,7 @@ struct AgedDatum {
  * Environmental source, in priority order:
  *  1. grib (non-null): at each step, LookupWind()/LookupCurrent() at the
  *     current datum position and time. Leeway is derived from the wind
- *     sample via craft_type's coefficients, drifting downwind (wind FROM
+ *     sample via craft's coefficients, drifting downwind (wind FROM
  *     + 180 deg); current is used as looked up. A lookup that comes back
  *     unavailable at a step contributes zero rather than aborting the run
  *     -- e.g. a GRIB whose grid does not cover the current position.
@@ -100,7 +108,7 @@ struct AgedDatum {
  */
 AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
                            const wxDateTime& time_of_report,
-                           const wxDateTime& now, const wxString& craft_type,
+                           const wxDateTime& now, CraftType craft,
                            const GribReader* grib,
                            const ManualSetAndDrift& manual);
 
@@ -129,15 +137,6 @@ double TotalProbableErrorNm(double initial_error_nm, double drift_error_nm);
  */
 double DivergenceOffsetNm(double leeway_nm, double divergence_deg);
 
-/**
- * Leeway divergence angle by craft_type, matched like
- * LookupLeewayCoefficients: "wooden" -> 50 deg (displacement hull; the
- * published fishing-vessel example), anything else -> 30 deg (top of the
- * liferaft range, Allen & Plourde 1999). Unverified -- see
- * docs/LEEWAY_NEEDS_VERIFICATION.md.
- */
-double LookupLeewayDivergenceDeg(const wxString& craft_type);
-
 /** How far from the estimated position the target may be. */
 struct DatumUncertainty {
   double initial_error_nm = 0.0;  // X
@@ -159,7 +158,7 @@ struct DatumUncertainty {
  * initial_error_nm is X.
  */
 DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
-                                         const wxString& craft_type,
+                                         CraftType craft,
                                          double initial_error_nm);
 
 /**

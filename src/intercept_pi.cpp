@@ -98,13 +98,12 @@ ManualSetAndDrift SanitizeManualDrift(bool has_manual_drift, double set_deg,
 
 }  // namespace
 
-std::vector<wxString> CraftTypeLabels() {
-  // "Unknown" is the default; LookupLeewayCoefficients() matches only
-  // "wooden" and falls everything else through to the rubber-hull
-  // coefficient, so an unknown craft gets that (the more cautious one).
-  return {_("Unknown / not specified"),
-          _("Rubber boat (inflatable / RIB)"),
-          _("Wooden boat (displacement hull)")};
+std::vector<CraftChoice> CraftTypeChoices() {
+  // "Unknown" is the default; LookupLeewayCoefficients() gives it the
+  // rubber-hull figures, the more cautious ones.
+  return {{CraftType::kUnknown, _("Unknown / not specified")},
+          {CraftType::kRubber, _("Rubber boat (inflatable / RIB)")},
+          {CraftType::kWooden, _("Wooden boat (displacement hull)")}};
 }
 
 void Case::FinalizeDatum() {
