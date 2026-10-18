@@ -13,14 +13,15 @@ plugin estimates where it is now, how far off that estimate may be, and the
 course, distance and time to meet it — and draws all of that on the chart.
 
 Installing and removing the plugin is covered in
-[INSTALLING.md](INSTALLING.md).
+[INSTALLING.md](INSTALLING.md). The screenshots show OpenCPN on Linux; on
+Windows and macOS the fields and buttons look slightly different, but the
+panel is the same.
 
 <!--
   The screenshots in docs/images/guide/ are generated: on a Linux machine
   with OpenCPN, run scripts/guide-screenshots/make-screenshots.sh and copy
   the pictures it writes to build/guide-screenshots/ into
-  docs/images/guide/. The comment under each image says what it shows. All
-  images are listed again at the end of this file.
+  docs/images/guide/.
 -->
 
 ## Contents
@@ -44,14 +45,12 @@ button again, or the panel's close button, to hide it — everything you
 entered is kept until OpenCPN is closed.
 
 ![The Intercept button in the OpenCPN toolbar](images/guide/01-toolbar-button.png)
-<!-- IMAGE: OpenCPN's toolbar with the Intercept button highlighted (arrow or circle). -->
 
 The panel has four boxes, top to bottom — **Own ship**, **Report**,
 **Target drift**, **Result** — and three display checkboxes underneath.
 Every field shows a short explanation when you hold the mouse over it.
 
 ![The whole panel](images/guide/02-panel-overview.png)
-<!-- IMAGE: the complete panel with a case filled in and a result shown, so every box is visible. -->
 
 On a small screen the panel is never taller than the screen: scroll inside
 it to reach the lower boxes. Scrolling with the mouse wheel over a number
@@ -66,7 +65,6 @@ buttons such as "OK" follow your OpenCPN language, as everywhere else.
 Where you are steering from, and how fast you go.
 
 ![The Own ship box](images/guide/03-own-ship.png)
-<!-- IMAGE: the Own ship box, both checkboxes ticked, the GPS speed showing a value next to "use GPS speed". -->
 
 | Field | What it does |
 |---|---|
@@ -86,7 +84,6 @@ target, but it cannot work out an intercept or an ETA.
 Where and when the target was last reported.
 
 ![The Report box](images/guide/04-report.png)
-<!-- IMAGE: the Report box with a position and time entered, locks unticked. -->
 
 **Reported position** — latitude, then longitude, separated by a comma. Any
 of these forms works:
@@ -115,7 +112,6 @@ How the target has been moving since it was reported. There are two ways to
 say it; if you give a GRIB file, it wins.
 
 ![The Target drift box](images/guide/05-target-drift.png)
-<!-- IMAGE: the Target drift box, explicit drift entered, no GRIB file set. -->
 
 ### Explicit drift
 
@@ -151,7 +147,6 @@ current, that part counts as zero drift — and as unknown, which makes the
 uncertainty circle larger (see below).
 
 ![The Target drift box with a GRIB file](images/guide/06-target-drift-grib.png)
-<!-- IMAGE: the Target drift box with a GRIB file selected and the explicit-drift fields greyed out. -->
 
 ## 5. Calculating
 
@@ -167,7 +162,6 @@ straight away and keeps going while the panel is closed, so the chart stays
 current. **Last calculated** shows when it last ran.
 
 ![Auto-recalculate](images/guide/07-auto-recalculate.png)
-<!-- IMAGE: the bottom of the Result box: auto-recalculate ticked, interval set, "Last calculated" time showing. -->
 
 An automatic run never opens a dialog box. If an input is invalid, or you
 are still typing a position, it skips that run, leaves the last result on
@@ -178,7 +172,6 @@ invalid input shows the error in a dialog.)
 ## 6. Reading the result
 
 ![The Result box](images/guide/08-result.png)
-<!-- IMAGE: the Result box after a calculation that found an intercept. -->
 
 ### Target
 
@@ -225,12 +218,10 @@ A target that is faster than you can still be met if it is drifting toward
 you or across your path; the plugin finds that meeting too.
 
 ![No intercept](images/guide/09-no-intercept.png)
-<!-- IMAGE: the Course to steer part of the Result box when there is no intercept (target faster and drifting away). -->
 
 ## 7. On the chart
 
 ![The chart objects](images/guide/10-chart-overview.png)
-<!-- IMAGE: the chart with all objects visible: reported position, drift track, estimated position with its ring, course line and intercept mark. -->
 
 | Object | What it shows | Shown when |
 |---|---|---|
@@ -245,7 +236,6 @@ The three checkboxes at the bottom of the panel show and hide these
 straight away, without recalculating.
 
 ![Show / hide checkboxes](images/guide/11-display-checkboxes.png)
-<!-- IMAGE: the three checkboxes under the Result box. -->
 
 **Navigating with them.** The "Course to steer" route is an ordinary
 OpenCPN route: you can activate it, or use "Navigate to" on a mark, and
@@ -289,10 +279,8 @@ with a test GRIB file, not real data.
    route. The estimate, the ring and the numbers keep updating as you go.
 
 ![Worked example — panel](images/guide/12-example-panel.png)
-<!-- IMAGE: the panel for the worked example after Recalculate. -->
 
 ![Worked example — chart](images/guide/13-example-chart.png)
-<!-- IMAGE: the chart for the worked example. -->
 
 ## 9. Troubleshooting
 
@@ -338,24 +326,3 @@ OpenCPN's log file lists plugin loading errors.
   is far more precise than that, a dead-reckoned one far less.
 - **No search patterns yet.** Expanding square, sector and parallel-track
   searches are planned.
-
-## Images to provide
-
-Put these files in `docs/images/guide/`; each shows up where it is
-referenced above.
-
-| File | Show |
-|---|---|
-| `01-toolbar-button.png` | OpenCPN's toolbar with the Intercept button highlighted |
-| `02-panel-overview.png` | The whole panel, with a case filled in and a result |
-| `03-own-ship.png` | The Own ship box, GPS speed showing next to "use GPS speed" |
-| `04-report.png` | The Report box with a position and time entered |
-| `05-target-drift.png` | The Target drift box with an explicit drift, no GRIB file |
-| `06-target-drift-grib.png` | The Target drift box with a GRIB file set (explicit fields greyed out) |
-| `07-auto-recalculate.png` | Auto-recalculate ticked, with the "Last calculated" time |
-| `08-result.png` | The Result box after a calculation with an intercept |
-| `09-no-intercept.png` | The Course to steer part when there is no intercept |
-| `10-chart-overview.png` | The chart with every plugin object visible |
-| `11-display-checkboxes.png` | The three show/hide checkboxes |
-| `12-example-panel.png` | The panel for the worked example |
-| `13-example-chart.png` | The chart for the worked example |
