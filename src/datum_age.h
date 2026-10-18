@@ -79,6 +79,10 @@ struct AgedDatum {
   // drifts on what is left, so that component counts as unknown.
   bool wind_every_step = false;
   bool current_every_step = false;
+  // kGrib only: leeway was part of the drift (ComputeAgedDatum's
+  // include_leeway). When false the target drifted on current alone, and its
+  // leeway counts as unknown in the uncertainty.
+  bool leeway_applied = false;
   // How far the leeway component alone moved the target (NM): the length of
   // the summed leeway vector, not of its path. Divergence turns every step's
   // leeway by the same angle, which turns the sum by it too, so this is what
@@ -103,6 +107,10 @@ struct AgedDatum {
  *     it, since there is no wind sample to derive one from.
  *  3. Neither: zero drift; the aged datum equals the reported position.
  *
+ * include_leeway false drops the wind-driven leeway from the GRIB source:
+ * the target drifts with the current alone -- for an operator who doesn't
+ * trust the (unreviewed) leeway model. No effect on the manual source.
+ *
  * time_of_report or now not valid, or now not after time_of_report,
  * returns the reported position unchanged with zero elapsed time.
  */
@@ -110,7 +118,8 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
                            const wxDateTime& time_of_report,
                            const wxDateTime& now, CraftType craft,
                            const GribReader* grib,
-                           const ManualSetAndDrift& manual);
+                           const ManualSetAndDrift& manual,
+                           bool include_leeway = true);
 
 /**
  * IAMSAR total probable drift velocity error (Vol II App. K):
@@ -153,7 +162,10 @@ struct DatumUncertainty {
  * App. Q example), when the GRIB covers them at every step, and 0.5 kt when
  * it doesn't -- so missing data widens the circle instead of shrinking it.
  * The wind's own error (ASWDVe, 0.3 kt) only adds when the GRIB had wind;
- * without wind data the unknown-leeway term already stands for it. A
+ * without wind data the unknown-leeway term already stands for it. With
+ * leeway switched off (AgedDatum::leeway_applied false) leeway counts as
+ * unknown too: the target is still pushed by the wind, the estimate just
+ * doesn't model it, so the circle must widen, not shrink. A
  * manually entered set & drift is not data: both components stay unknown.
  * initial_error_nm is X.
  */

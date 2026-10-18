@@ -206,6 +206,21 @@ int main(int argc, char** argv) {
             "GRIB-sourced uncertainty: +/-30 deg divergence for a rubber boat");
       Check(std::fabs(u.radius_nm - (u.e_nm + u.divergence_nm)) < 1e-12,
             "GRIB-sourced uncertainty: radius = E + divergence");
+
+      // Leeway off: this fixture has no current, so nothing moves the
+      // target -- and the leeway, not estimated, counts as unknown.
+      AgedDatum no_lw = ComputeAgedDatum(lat, lon, kValidTime, now, craft_type,
+                                         &grib, ManualSetAndDrift(),
+                                         /*include_leeway=*/false);
+      Check(no_lw.lat == lat && no_lw.lon == lon,
+            "leeway off: wind-only GRIB leaves the datum at the report");
+      Check(!no_lw.leeway_applied && no_lw.leeway_nm == 0.0,
+            "leeway off: no leeway applied, no leeway distance");
+      DatumUncertainty u_off = ComputeDatumUncertainty(no_lw, craft_type, 1.0);
+      Check(std::fabs(u_off.dve_kt - std::sqrt(0.5 * 0.5 + 0.5 * 0.5)) < 1e-9,
+            "leeway off: leeway (and the missing current) unknown");
+      Check(u_off.dve_kt > u.dve_kt,
+            "leeway off: a wider circle than with leeway, not a tighter one");
     }
   }
 

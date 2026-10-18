@@ -45,6 +45,9 @@ struct Case {
   bool has_manual_drift = false;
   double manual_set_deg = 0.0;
   double manual_drift_kt = 0.0;
+  // With a GRIB file: drift with current + leeway (true), or current only
+  // (false), for an operator who doesn't trust the unreviewed leeway model.
+  bool include_leeway = true;
 
   // Set by FinalizeDatum(): the reported position aged forward to now.
   // Equal to (lat, lon) with a zero elapsed until FinalizeDatum() runs, and

@@ -265,6 +265,18 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
         _("The kind of object being tracked. Sets the leeway coefficient "
           "(percentage of wind speed) applied when a GRIB supplies wind."));
     ng->Add(m_craft_choice, 1, wxEXPAND);
+    ng->Add(plain(bp, _("Leeway:")), 0, wxALIGN_CENTER_VERTICAL);
+    m_include_leeway =
+        new wxCheckBox(bp, wxID_ANY, _("include (the wind pushing the craft)"));
+    m_include_leeway->SetValue(true);
+    m_include_leeway->Enable(false);  // Until a GRIB file is set.
+    m_include_leeway->SetToolTip(
+        _("Ticked: the target drifts with the GRIB current plus leeway, the "
+          "wind pushing the craft. Unticked: current only -- if you don't "
+          "trust the leeway model, which is not verified. The uncertainty "
+          "ring then grows, since the leeway is still there, just not "
+          "estimated. Only used with a GRIB file."));
+    ng->Add(m_include_leeway, 0, wxALIGN_CENTER_VERTICAL);
     ng->Add(plain(bp, _("Persons on board (optional):")), 0,
             wxALIGN_CENTER_VERTICAL);
     m_pob_ctrl = new wxSpinCtrl(bp, wxID_ANY, "0", wxDefaultPosition,
@@ -505,6 +517,8 @@ void InterceptPanel::UpdateGribLock() {
   // set & drift would be ignored, so disable them to make that clear.
   m_set_ctrl->Enable(!have_grib);
   m_drift_ctrl->Enable(!have_grib);
+  // Leeway only comes from GRIB wind; an entered drift is already the total.
+  m_include_leeway->Enable(have_grib);
 }
 
 void InterceptPanel::OnDisplayToggled(wxCommandEvent& WXUNUSED(event)) {
@@ -688,6 +702,7 @@ void InterceptPanel::DoRecalculate(bool automatic) {
     c.craft_type = craft_choices[craft_sel].type;
   c.pob = m_pob_ctrl->GetValue();
   c.grib_file_path = m_grib_path_ctrl->GetValue();
+  c.include_leeway = m_include_leeway->IsChecked();
   double drift_kt = m_drift_ctrl->GetValue();
   c.has_manual_drift = drift_kt > 0.0;
   c.manual_drift_kt = drift_kt;
@@ -764,7 +779,9 @@ void InterceptPanel::ShowOutputs(const Case& c,
   // Same priority as ComputeAgedDatum: a GRIB file wins over entered drift
   // (whose field is only disabled, not cleared, while a GRIB is set).
   if (!c.grib_file_path.IsEmpty()) {
-    m_out_drift->SetLabel(_("from GRIB file"));
+    m_out_drift->SetLabel(c.include_leeway
+                              ? _("from GRIB file")
+                              : _("from GRIB file, current only (leeway off)"));
   } else if (c.has_manual_drift) {
     m_out_drift->SetLabel(wxString::Format(_("%s deg, %.1f kt (entered)"),
                                            Wx(FormatBearingDeg(c.manual_set_deg)),

@@ -105,7 +105,8 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
                            const wxDateTime& time_of_report,
                            const wxDateTime& now, CraftType craft,
                            const GribReader* grib,
-                           const ManualSetAndDrift& manual) {
+                           const ManualSetAndDrift& manual,
+                           bool include_leeway) {
   AgedDatum result;
   result.lat = reported_lat;
   result.lon = reported_lon;
@@ -131,6 +132,7 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
     return result;  // Zero drift: aged datum equals reported position.
   }
   result.source = grib ? DriftSource::kGrib : DriftSource::kManual;
+  result.leeway_applied = grib != nullptr && include_leeway;
 
   const LeewayCoefficients leeway = LookupLeewayCoefficients(craft);
 
@@ -178,7 +180,8 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
 
       double leeway_speed_kt = 0.0;
       double leeway_dir_deg = 0.0;
-      if (wind.available) {
+      const bool leeway = wind.available && result.leeway_applied;
+      if (leeway) {
         leeway_speed_kt =
             std::max(0.0, leeway.speed_pct_of_wind * wind.speed_kt +
                               leeway.speed_constant_kt);
@@ -189,14 +192,14 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
         leeway_north_nm += leeway_step_nm * std::cos(ToRad(leeway_dir_deg));
       }
 
-      if (current.available && wind.available) {
+      if (current.available && leeway) {
         CombineVectors(current.speed_kt, current.direction_deg,
                        leeway_speed_kt, leeway_dir_deg, &drift_speed_kt,
                        &drift_dir_deg);
       } else if (current.available) {
         drift_speed_kt = current.speed_kt;
         drift_dir_deg = current.direction_deg;
-      } else if (wind.available) {
+      } else if (leeway) {
         drift_speed_kt = leeway_speed_kt;
         drift_dir_deg = leeway_dir_deg;
       }
@@ -256,7 +259,7 @@ DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
       // still moves the datum; it just doesn't narrow the circle.)
       break;
     case DriftSource::kGrib:
-      if (aged.wind_every_step) {
+      if (aged.wind_every_step && aged.leeway_applied) {
         aswdve = kKnownComponentErrorKt;
         lwe = kKnownComponentErrorKt;
       }

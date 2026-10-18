@@ -373,6 +373,21 @@ int main() {
       Check(std::fabs(aged.leeway_nm - 0.036 * wind_speed_kt * drift_hours) <
                 0.05,
             "reference example: leeway distance = leeway speed * drift time");
+
+      // Leeway off: the current alone, 1.86 kt for 18.75 h = 34.9 NM.
+      AgedDatum current_only = ComputeAgedDatum(
+          eip_lat, eip_lon, time_of_report, now, CraftType::kRubber, &grib,
+          ManualSetAndDrift(), /*include_leeway=*/false);
+      Check(std::fabs(DistanceNm(eip_lat, eip_lon, current_only.lat,
+                                 current_only.lon) -
+                      current_speed_kt * drift_hours) < 0.3,
+            "reference example, leeway off: moved by the current only");
+      DatumUncertainty u_off =
+          ComputeDatumUncertainty(current_only, CraftType::kRubber, 0.0);
+      Check(std::fabs(u_off.dve_kt - std::sqrt(0.3 * 0.3 + 0.5 * 0.5)) < 1e-9,
+            "reference example, leeway off: current known, leeway unknown");
+      Check(u_off.divergence_nm == 0.0,
+            "reference example, leeway off: no divergence allowance");
     }
 
     wxRemoveFile(temp_path);

@@ -122,7 +122,7 @@ void Case::FinalizeDatum() {
 
   AgedDatum aged =
       ComputeAgedDatum(lat, lon, time_of_report, wxDateTime::Now(),
-                        craft_type, grib.get(), manual);
+                        craft_type, grib.get(), manual, include_leeway);
   aged_lat = aged.lat;
   aged_lon = aged.lon;
   elapsed = aged.elapsed;
@@ -149,7 +149,7 @@ void Case::SolveIntercept(const OwnShipState& own) {
     const long secs = static_cast<long>(hours * 3600.0 + 0.5);
     AgedDatum d = ComputeAgedDatum(lat, lon, time_of_report,
                                    now + wxTimeSpan::Seconds(secs), craft_type,
-                                   grib.get(), manual);
+                                   grib.get(), manual, include_leeway);
     return GeoPoint{d.lat, d.lon};
   };
 

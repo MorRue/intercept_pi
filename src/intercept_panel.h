@@ -115,6 +115,7 @@ private:
   wxDatePickerCtrl* m_date_ctrl;
   wxTimePickerCtrl* m_time_ctrl;
   wxChoice* m_craft_choice;
+  wxCheckBox* m_include_leeway;  // With a GRIB: current + leeway, or current.
   wxSpinCtrl* m_pob_ctrl;
   wxTextCtrl* m_grib_path_ctrl;
   wxSpinCtrlDouble* m_set_ctrl;
