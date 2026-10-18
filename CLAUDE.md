@@ -179,7 +179,11 @@ trees and configure again; git itself survives a rename untouched.
   gettext pinned by URL + SHA-256 from mlocati/gettext-iconv-windows) also runs on every push/PR for now — it's ~2 min with
   the wx binaries cached, but it counts 2× against the private-repo Actions
   budget, so consider narrowing it to tags + `workflow_dispatch` if minutes
-  get tight.
+  get tight. **macOS** (universal arm64 + x86_64, macOS 11+, OpenCPN's
+  prebuilt wxWidgets pinned by URL + SHA-256) runs only for `v*` tags and
+  `workflow_dispatch`; the release job waits for it. It takes under a minute
+  on GitHub's Apple Silicon runners, ~10 billed minutes at the 10× macOS
+  rate, so adding it to PRs would be affordable.
 - **This will be developed on a sandbox machine** that reaches GitHub through
   a per-repository *deploy key*. Deploy keys authenticate git over SSH but not
   the GitHub API, so `gh` cannot work there at all — no pull requests, no

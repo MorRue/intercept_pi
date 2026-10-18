@@ -16,6 +16,7 @@ download the archive for your platform:
 |---|---|
 | Linux (x86-64, glibc ≥ 2.36 — Debian 12+, Ubuntu 22.04+) | `Intercept-<version>_debian-x86_64-…​.tar.gz` |
 | Windows (32-bit — matches OpenCPN's official build) | `Intercept-<version>_msvc-wx32-…​.tar.gz` |
+| macOS 11+ (Apple Silicon and Intel) | `Intercept-<version>_darwin-wx32-11-arm64-x86_64.tar.gz` |
 
 Do **not** unpack it. OpenCPN reads the `.tar.gz` directly.
 

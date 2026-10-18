@@ -62,9 +62,10 @@ unmanaged, so there is no Uninstall button — see
 
 ## Platform support
 
-Linux and Windows, built in CI on every push. The Windows build is 32-bit
-because OpenCPN's official Windows binary is 32-bit; a 64-bit plugin will
-not load.
+Linux and Windows, built in CI on every push; macOS (universal: Apple
+Silicon and Intel, macOS 11+) for every release. The Windows build is
+32-bit because OpenCPN's official Windows binary is 32-bit; a 64-bit plugin
+will not load.
 
 The plugin targets plugin API 1.18, so it loads on OpenCPN 5.8 and later.
 
