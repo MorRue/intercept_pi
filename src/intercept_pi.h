@@ -59,8 +59,8 @@ struct Case {
 
   // Set by SolveIntercept(): the moving-target intercept -- where own-ship
   // meets the target if the target keeps drifting during the transit. When
-  // intercept_solved is false (no own-ship speed, or the target outpaces
-  // own-ship) steer at (aged_lat, aged_lon) instead.
+  // intercept_solved is false (no own-ship speed, or own-ship can never
+  // reach the target) there is no meeting point.
   bool intercept_solved = false;
   double intercept_lat = 0.0;
   double intercept_lon = 0.0;

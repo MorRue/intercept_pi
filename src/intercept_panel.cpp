@@ -807,19 +807,21 @@ void InterceptPanel::ShowOutputs(const Case& c,
     return;
   }
 
-  // No moving-target solution: steer at the present estimated position and
-  // say why the lead is missing.
+  // No intercept: say why, and give only the direction of and range to where
+  // the target is now. No ETA -- the target won't be there when own-ship is.
+  const bool have_speed = own->sog_kt > 0.0;
   InterceptResult r = CourseToSteer(own->lat, own->lon, c.aged_lat, c.aged_lon,
                                     own->sog_kt);
-  m_out_intercept->SetLabel(
-      own->sog_kt > 0.0
-          ? wxString(_("-- (target outpaces own ship)"))
-          : wxString(_("-- (own-ship speed not set)")));
+  m_out_intercept->SetLabel(have_speed
+                                ? wxString(_("-- (own ship can't catch up)"))
+                                : wxString(_("-- (own-ship speed not set)")));
   m_out_bearing->SetLabel(
-      wxString::Format(_("%s deg"), Wx(FormatBearingDeg(r.bearing_deg))));
+      wxString::Format(_("%s deg (to estimated position now)"),
+                       Wx(FormatBearingDeg(r.bearing_deg))));
   m_out_distance->SetLabel(
-      wxString::Format(_("%s NM"), Wx(FormatDistanceNm(r.distance_nm))));
-  m_out_eta->SetLabel(r.eta.has_value()
-                          ? Wx(FormatEtaHhMm(*r.eta))
+      wxString::Format(_("%s NM (to estimated position now)"),
+                       Wx(FormatDistanceNm(r.distance_nm))));
+  m_out_eta->SetLabel(have_speed
+                          ? wxString(_("-- (no intercept)"))
                           : wxString(_("-- (own-ship speed not set)")));
 }

@@ -223,9 +223,10 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      **Course to steer** — intercept point, bearing, distance to run, and an
      ETA row that also carries the **[Recalculate]** button (bottom-right,
      same row, no row of its own). Intercept point / bearing / distance / ETA
-     come from `Case::intercept_*` when the moving-target solve converged,
-     otherwise from `CourseToSteer` to the present estimated position with a
-     note why (speed unknown, or target outpaces own-ship). Below the box,
+     come from `Case::intercept_*` when the moving-target solve converged.
+     Without an intercept the row says why (speed unknown, or own-ship can't
+     catch up), bearing/distance are to the estimated position *now* and say
+     so, and ETA is "-- (no intercept)" — the target won't be there. Below the box,
      three **display checkboxes** ("Show reported position", "Show estimated
      position", "Show routes", all on) hide/show chart objects. Every input
      control (and the lock checkboxes, Browse and Recalculate) carries a
@@ -282,9 +283,10 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      - **"Intercept" mark** (diamond) at the far end of the course line —
        the moving-target meeting point from `Case::SolveIntercept` (where
        own-ship's straight course meets the still-drifting target). Visibility
-       tied to "Show routes". Falls back to the estimated position when the
-       solve doesn't converge (no own-ship speed, or the target outpaces
-       own-ship);
+       tied to "Show routes". Only drawn when there *is* an intercept;
+       without one the course line still points at the estimated position,
+       renamed "Toward estimated position (no intercept)", with an unlabelled
+       end point;
      - **"Target drift" track** (`AddPlugInTrack`) reported → datum;
      - **"Course to steer" route** (`AddPlugInRoute`, activatable) own-ship
        → intercept.
@@ -333,12 +335,16 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
 - Datum ageing (PR #5) — `ComputeAgedDatum` / `FinalizeDatum` on the `Case`,
   GRIB and manual set & drift as sources, drift optional.
 - Moving-target intercept — `SolveMovingIntercept` (`src/intercept_solve.{h,cpp}`,
-  `test_intercept_solve`): fixed-point iteration `t ← range(own, target_at(t))
-  / sog` on the transit time, `target_at` extrapolating the same drift model
-  past "now". `Case::SolveIntercept(own)` wires it up (one `GribReader`
+  `test_intercept_solve`): the earliest `t` where the shortfall
+  `range(own, target_at(t)) − sog·t` reaches 0, found by marching forward in
+  steps of `shortfall / (sog + 20 kt)` (can't overshoot the first zero while
+  targets stay under the 20 kt drift cap; min step 1 min) then bisecting.
+  Unlike the fixed-point iteration it replaced, this also finds intercepts
+  with a *faster* target heading toward or across own-ship. `target_at`
+  extrapolates the same drift model past "now". `Case::SolveIntercept(own)` wires it up (one `GribReader`
   reused across iterations) and fills `Case::intercept_*`; the panel and the
   course route/mark use it, falling back to the present estimated position
-  when it doesn't converge (sog ≤ 0, or the target outpaces own-ship). ETA
+  when it doesn't converge (sog ≤ 0, or own-ship can never reach it). ETA
   is now the transit time to the meeting point, not range-to-datum-now / sog.
 - Leeway coefficient fixed `0.36 → 0.036` and pinned by
   `test/test_reference_leeway.cpp` against a published SAR worked example + the

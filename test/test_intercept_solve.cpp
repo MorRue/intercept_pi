@@ -64,8 +64,8 @@ int main() {
           "stationary: course due north");
   }
 
-  // (3) Target outruns own-ship: starts 5 NM east, drifts east at 10 kt,
-  //     own-ship only 5 kt. No intercept.
+  // (3) Target outruns own-ship: starts 5 NM east, drifts east -- away --
+  //     at 10 kt, own-ship only 5 kt. No intercept.
   {
     auto target_at = [](double h) {
       return GeoPoint{0.0, East(5.0 + 10.0 * h)};
@@ -94,6 +94,47 @@ int main() {
     double lead_nm = std::hypot((r.lat - now.lat) * kNmPerDeg,
                                 (r.lon - now.lon) * kNmPerDeg);
     Check(lead_nm > 7.0, "lead: meeting point is >7 NM from the present datum");
+  }
+
+  // (6) A FASTER target heading straight for own-ship can still be met:
+  //     10 NM north, 8 kt south; own-ship 5 kt north. 10 - 8t = 5t ->
+  //     t = 10/13 h, meeting 50/13 = 3.85 NM north. (The old fixed-point
+  //     iteration diverged here: it only contracts for a slower target.)
+  {
+    auto target_at = [](double h) {
+      return GeoPoint{North(10.0 - 8.0 * h), 0.0};
+    };
+    MovingInterceptResult r = SolveMovingIntercept(0.0, 0.0, 5.0, target_at);
+    Check(r.converged, "faster, approaching: converged");
+    Check(std::fabs(r.time_hours - 10.0 / 13.0) < 0.001,
+          "faster, approaching: ETA 10/13 h");
+    Check(std::fabs(r.lat - North(50.0 / 13.0)) < 1e-4,
+          "faster, approaching: meet 3.85 NM north");
+  }
+
+  // (7) A faster target crossing ahead is reachable twice -- once early,
+  //     once after it has passed -- and the EARLIEST must win. Target 2 NM
+  //     north and 6 NM west, 10 kt east; own-ship 5 kt:
+  //       (10t - 6)^2 + 2^2 = (5t)^2  ->  75t^2 - 120t + 40 = 0
+  //       t = (120 -/+ sqrt(2400)) / 150 = 0.4734 h or 1.1266 h.
+  {
+    auto target_at = [](double h) {
+      return GeoPoint{North(2.0), East(-6.0 + 10.0 * h)};
+    };
+    MovingInterceptResult r = SolveMovingIntercept(0.0, 0.0, 5.0, target_at);
+    const double t_early = (120.0 - std::sqrt(2400.0)) / 150.0;
+    Check(r.converged, "faster, crossing: converged");
+    Check(std::fabs(r.time_hours - t_early) < 0.001,
+          "faster, crossing: the earlier of the two meetings");
+    Check(std::fabs(r.lon - East(-6.0 + 10.0 * t_early)) < 1e-3,
+          "faster, crossing: meeting point west of own-ship's meridian");
+  }
+
+  // (8) Already together: no transit at all.
+  {
+    auto target_at = [](double) { return GeoPoint{0.0, 0.0}; };
+    MovingInterceptResult r = SolveMovingIntercept(0.0, 0.0, 5.0, target_at);
+    Check(r.converged && r.time_hours == 0.0, "same position: met at t = 0");
   }
 
   if (g_failures > 0) {

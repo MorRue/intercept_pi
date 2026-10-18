@@ -28,6 +28,13 @@ All notable changes to the Intercept plugin. This project follows
   none before.
 
 ### Fixed
+- The intercept is found whenever own ship can reach the target, also when
+  the target is the faster of the two but drifting toward or across own
+  ship's path; the solver used to give up whenever the target was faster.
+  When there is no intercept, no "Intercept" mark is drawn on top of the
+  estimated position any more, the course line is labelled "Toward
+  estimated position (no intercept)", and the ETA reads "-- (no intercept)"
+  instead of a time to a place the target will have left.
 - Recalculating (by hand, automatically, or by toggling a display checkbox)
   no longer cancels navigation: if OpenCPN is navigating along the "Course
   to steer" route or to one of the plugin's marks, that object is left as it

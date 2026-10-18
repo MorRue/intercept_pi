@@ -419,24 +419,30 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   // bearing/distance if a position was entered in the panel.
   if (!own) return;
 
-  // Steer at the moving-target intercept when it solved; otherwise (speed
-  // unknown, or the target outpaces own-ship) at the present estimated
-  // position.
-  const double tgt_lat = c.intercept_solved ? c.intercept_lat : c.aged_lat;
-  const double tgt_lon = c.intercept_solved ? c.intercept_lon : c.aged_lon;
+  // Steer at the moving-target intercept when it solved. Without one (speed
+  // unknown, or own-ship can't catch the target) the line only shows the
+  // direction of the target's present estimated position -- nothing at its
+  // end is called "Intercept", since nothing will be met there.
+  const bool solved = c.intercept_solved;
+  const double tgt_lat = solved ? c.intercept_lat : c.aged_lat;
+  const double tgt_lon = solved ? c.intercept_lon : c.aged_lon;
   std::vector<GeoPoint> points =
       BuildInterceptWaypoints(own->lat, own->lon, tgt_lat, tgt_lon);
 
   auto* route = new PlugIn_Route();
-  route->m_NameString = _("Course to steer");
+  route->m_NameString =
+      solved ? _("Course to steer") : _("Toward estimated position (no intercept)");
   route->m_StartString = _("Own ship");
-  route->m_EndString = _("Intercept");
+  route->m_EndString = solved ? _("Intercept") : _("Estimated position");
   route->m_GUID = kCourseRouteGuid;
   route->pWaypointList = new Plugin_WaypointList();
   route->pWaypointList->Append(new PlugIn_Waypoint(
       points[0].lat, points[0].lon, wxT("circle"), _("Own ship")));
-  route->pWaypointList->Append(new PlugIn_Waypoint(
-      points[1].lat, points[1].lon, wxT("circle"), _("Intercept")));
+  // Unlabelled when there's no intercept: the "Estimated position" mark
+  // already sits there and names it.
+  route->pWaypointList->Append(
+      new PlugIn_Waypoint(points[1].lat, points[1].lon, wxT("circle"),
+                          solved ? _("Intercept") : wxString()));
 
   // Session-scoped (b_permanent=false); the navigator can still select it on
   // the chart, and "Navigate to" works on the Intercept mark for an active
@@ -445,10 +451,8 @@ void intercept_pi::UpdateCourseRoute(const Case& c,
   AddPlugInRoute(route, /*b_permanent=*/false);
   delete route;
 
-  // The intercept: the far end of the course line -- the moving-target
-  // meeting point when it solved, else the present estimated position. A
-  // "diamond" icon keeps it distinct from the "circle" estimated-position
-  // mark when the two coincide.
+  // The meeting point, only when there is one.
+  if (!solved) return;
   PlugIn_Waypoint intercept(points[1].lat, points[1].lon, wxT("diamond"),
                             _("Intercept"), kInterceptMarkGuid);
   AddSingleWaypoint(&intercept, /*b_permanent=*/false);
