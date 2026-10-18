@@ -180,8 +180,8 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
 
       double leeway_speed_kt = 0.0;
       double leeway_dir_deg = 0.0;
-      const bool leeway = wind.available && result.leeway_applied;
-      if (leeway) {
+      const bool use_leeway = wind.available && result.leeway_applied;
+      if (use_leeway) {
         leeway_speed_kt =
             std::max(0.0, leeway.speed_pct_of_wind * wind.speed_kt +
                               leeway.speed_constant_kt);
@@ -192,14 +192,14 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
         leeway_north_nm += leeway_step_nm * std::cos(ToRad(leeway_dir_deg));
       }
 
-      if (current.available && leeway) {
+      if (current.available && use_leeway) {
         CombineVectors(current.speed_kt, current.direction_deg,
                        leeway_speed_kt, leeway_dir_deg, &drift_speed_kt,
                        &drift_dir_deg);
       } else if (current.available) {
         drift_speed_kt = current.speed_kt;
         drift_dir_deg = current.direction_deg;
-      } else if (leeway) {
+      } else if (use_leeway) {
         drift_speed_kt = leeway_speed_kt;
         drift_dir_deg = leeway_dir_deg;
       }
