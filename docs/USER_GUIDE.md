@@ -16,10 +16,11 @@ Installing and removing the plugin is covered in
 [INSTALLING.md](INSTALLING.md).
 
 <!--
-  Image placeholders: each ![...](images/guide/...) below shows up as soon as
-  a file with that name is added to docs/images/guide/. The comment under it
-  says what the screenshot should show. All images are listed again at the
-  end of this file.
+  The screenshots in docs/images/guide/ are generated: on a Linux machine
+  with OpenCPN, run scripts/guide-screenshots/make-screenshots.sh and copy
+  the pictures it writes to build/guide-screenshots/ into
+  docs/images/guide/. The comment under each image says what it shows. All
+  images are listed again at the end of this file.
 -->
 
 ## Contents
@@ -267,18 +268,21 @@ OpenCPN.
 
 ## 8. A worked example
 
-_Replace the numbers below with the case in your screenshots._
+This is the case in the screenshots: a demonstration south-west of Malta
+with a test GRIB file, not real data.
 
-1. A raft is reported at **36° 30.0' N, 004° 15.0' W** at **14:00**. You
-   are south-west of it, making **6 kt** on GPS.
+1. A rubber boat was reported at **35° 40.0' N, 013° 50.0' E** six hours
+   ago. You are south-west of it at 35° 20' N, 013° 20' E, making **6 kt**
+   on GPS.
 2. Open the panel. Leave **use GPS position** and **use GPS speed** ticked;
-   check the GPS speed shows about 6.0 kt.
+   the field next to "use GPS speed" shows 6.0 kt.
 3. Enter the reported position and the time of report.
 4. You have a GRIB file for the area: **Browse…** to it, and set **Craft
    type** to *Rubber boat (inflatable / RIB)*.
-5. Press **Recalculate**. The Result box shows the estimated position, the
-   uncertainty radius, and the intercept — say a bearing of 052°, 18.4 NM
-   to run, ETA 03:04.
+5. Press **Recalculate**. The Result box shows the estimated position about
+   4 NM south-east of the report, an uncertainty radius of about 6 NM
+   (2 NM of it for leeway divergence), and the intercept: a bearing of about
+   064°, 33 NM to run, ETA about 05:30.
 6. On the chart: the drift track from the reported position, the estimated
    position with its ring, and the course line to the intercept mark.
 7. Tick **Auto-recalculate every 5 min** and activate the "Course to steer"

@@ -134,6 +134,16 @@ wxWidgets include paths are only wired up in the sub-build that the default
 target triggers. Build the default target (or `tarball`). Any tool that lists
 targets will offer `intercept_pi` — it is not a usable entry point.
 
+**User-guide screenshots are generated**, not taken by hand:
+`scripts/guide-screenshots/make-screenshots.sh` (Linux only — the sandbox;
+needs `opencpn xvfb xdotool imagemagick`) installs the built plugin, runs
+OpenCPN on a virtual display with a fake GPS, types a demo case into the
+panel and writes the 13 pictures `docs/USER_GUIDE.md` uses to
+`build/guide-screenshots/`. Copy them to `docs/images/guide/`. Rerun it after
+any panel change; its clicks and crops are panel-relative pixel positions, so
+a layout change means adjusting them (full-screen shots of each step are in
+`build/guide-screenshots/steps/`).
+
 **Editing a `CACHE` variable in `Plugin.cmake` does not affect an existing
 build tree.** `set(... CACHE STRING ...)` only assigns when the cache has no
 value, so `CMakeCache.txt` wins on every reconfigure. Either pass `-D` to
