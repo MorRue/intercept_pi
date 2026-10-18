@@ -180,8 +180,11 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
 
       double leeway_speed_kt = 0.0;
       double leeway_dir_deg = 0.0;
+      // The leeway is worked out whenever there is wind -- with leeway off it
+      // isn't applied, but the uncertainty still needs how far it would
+      // have moved the target.
       const bool use_leeway = wind.available && result.leeway_applied;
-      if (use_leeway) {
+      if (wind.available) {
         leeway_speed_kt =
             std::max(0.0, leeway.speed_pct_of_wind * wind.speed_kt +
                               leeway.speed_constant_kt);
@@ -269,12 +272,35 @@ DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
 
   DatumUncertainty u;
   u.initial_error_nm = initial_error_nm;
+  // With leeway switched off, the divergence allowance below has no leeway
+  // to scale with; the ring is widened further down instead.
+  const double divergence_leeway_nm =
+      aged.leeway_applied ? aged.leeway_nm : 0.0;
   u.dve_kt = TotalDriftVelocityErrorKt(aswdve, twce, lwe);
   const double hours = aged.elapsed.GetSeconds().ToDouble() / 3600.0;
   u.drift_error_nm = hours * u.dve_kt;
   u.e_nm = TotalProbableErrorNm(initial_error_nm, u.drift_error_nm);
   u.divergence_nm = DivergenceOffsetNm(
-      aged.leeway_nm, LookupLeewayCoefficients(craft).divergence_deg);
+      divergence_leeway_nm, LookupLeewayCoefficients(craft).divergence_deg);
   u.radius_nm = u.e_nm + u.divergence_nm;
+
+  // Leeway switched off, but the wind would have moved the target: the ring
+  // must still contain the leeway estimate's ring -- that estimate lies about
+  // aged.leeway_nm away -- or not trusting the leeway model would make the
+  // result look more certain. (The two estimates differ by exactly the
+  // leeway displacement only where the current is the same along both
+  // paths; close enough for an allowance.)
+  if (aged.source == DriftSource::kGrib && !aged.leeway_applied &&
+      aged.leeway_nm > 0.0) {
+    AgedDatum with_leeway = aged;
+    with_leeway.leeway_applied = true;
+    const double covering_nm =
+        aged.leeway_nm +
+        ComputeDatumUncertainty(with_leeway, craft, initial_error_nm).radius_nm;
+    if (covering_nm > u.radius_nm) {
+      u.leeway_off_nm = covering_nm - u.radius_nm;
+      u.radius_nm = covering_nm;
+    }
+  }
   return u;
 }

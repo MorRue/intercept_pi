@@ -88,7 +88,9 @@ by `test_position_parse`), `intercept_panel.{h,cpp}` (the UI), `datum_age.{h,cpp
    just bearing-to-reported-position. Wind and drift are both optional inputs.
    — **done:** the panel's "Leeway: include" checkbox (`Case::include_leeway`,
    `ComputeAgedDatum(…, include_leeway)`); unticked, the leeway counts as
-   unknown in the uncertainty (`AgedDatum::leeway_applied`).
+   unknown in the uncertainty (`AgedDatum::leeway_applied`) and the ring is
+   widened to contain the leeway estimate's ring (`leeway_off_nm`) — so the
+   ring never shrinks when leeway is switched off.
 5. Search patterns: expanding square, sector, parallel track, as routes
 
 **Wind/current source — decided: an optional operator-selected GRIB file.**

@@ -388,6 +388,16 @@ int main() {
             "reference example, leeway off: current known, leeway unknown");
       Check(u_off.divergence_nm == 0.0,
             "reference example, leeway off: no divergence allowance");
+      // Its ring must contain the with-leeway estimate's ring, which lies
+      // about the leeway displacement away from it.
+      const DatumUncertainty u_on =
+          ComputeDatumUncertainty(aged, CraftType::kRubber, 0.0);
+      const double between_nm = DistanceNm(current_only.lat, current_only.lon,
+                                           aged.lat, aged.lon);
+      Check(u_off.radius_nm >= between_nm + u_on.radius_nm - 0.5,
+            "reference example, leeway off: ring contains the leeway ring");
+      Check(u_off.radius_nm > u_on.radius_nm,
+            "reference example, leeway off: wider than with leeway");
     }
 
     wxRemoveFile(temp_path);

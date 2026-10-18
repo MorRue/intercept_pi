@@ -188,5 +188,7 @@ let the operator choose which the displayed route uses. See `CLAUDE.md`.
 
 **Done:** the panel's "Leeway: include" checkbox (with a GRIB file). Unticked,
 the target drifts with the current alone, both for the estimate and for the
-intercept, and the leeway counts as an unknown 0.5 kt in the uncertainty —
-switching the model off must not make the result look more certain.
+intercept. In the uncertainty the leeway counts as an unknown 0.5 kt, and
+the ring is widened to contain the leeway estimate's ring as well (that
+estimate lies about the leeway displacement away) — switching the model off
+must not make the result look more certain.

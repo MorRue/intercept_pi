@@ -274,8 +274,8 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
         _("Ticked: the target drifts with the GRIB current plus leeway, the "
           "wind pushing the craft. Unticked: current only -- if you don't "
           "trust the leeway model, which is not verified. The uncertainty "
-          "ring then grows, since the leeway is still there, just not "
-          "estimated. Only used with a GRIB file."));
+          "ring then grows so that it also contains where the target would "
+          "be with leeway. Only used with a GRIB file."));
     ng->Add(m_include_leeway, 0, wxALIGN_CENTER_VERTICAL);
     ng->Add(plain(bp, _("Persons on board (optional):")), 0,
             wxALIGN_CENTER_VERTICAL);
@@ -773,6 +773,10 @@ void InterceptPanel::ShowOutputs(const Case& c,
     uncertainty += wxString::Format(
         _(" (incl. %s NM leeway divergence)"),
         Wx(FormatDistanceNm(c.uncertainty.divergence_nm)));
+  } else if (c.uncertainty.leeway_off_nm >= 0.05) {
+    uncertainty += wxString::Format(
+        _(" (incl. %s NM for the leeway left out)"),
+        Wx(FormatDistanceNm(c.uncertainty.leeway_off_nm)));
   }
   m_out_uncertainty->SetLabel(uncertainty);
 

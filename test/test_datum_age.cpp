@@ -214,13 +214,20 @@ int main(int argc, char** argv) {
                                          /*include_leeway=*/false);
       Check(no_lw.lat == lat && no_lw.lon == lon,
             "leeway off: wind-only GRIB leaves the datum at the report");
-      Check(!no_lw.leeway_applied && no_lw.leeway_nm == 0.0,
-            "leeway off: no leeway applied, no leeway distance");
+      Check(!no_lw.leeway_applied,
+            "leeway off: no leeway applied");
+      Check(std::fabs(no_lw.leeway_nm - distance_nm) < 1e-9,
+            "leeway off: still knows how far the leeway would have moved it");
       DatumUncertainty u_off = ComputeDatumUncertainty(no_lw, craft_type, 1.0);
       Check(std::fabs(u_off.dve_kt - std::sqrt(0.5 * 0.5 + 0.5 * 0.5)) < 1e-9,
             "leeway off: leeway (and the missing current) unknown");
-      Check(u_off.dve_kt > u.dve_kt,
-            "leeway off: a wider circle than with leeway, not a tighter one");
+      Check(u_off.divergence_nm == 0.0,
+            "leeway off: no divergence allowance of its own");
+      // The leeway estimate is distance_nm away; its ring must fit inside.
+      Check(std::fabs(u_off.radius_nm - (distance_nm + u.radius_nm)) < 1e-9,
+            "leeway off: ring contains the leeway estimate's ring");
+      Check(u_off.radius_nm > u.radius_nm,
+            "leeway off: a wider ring than with leeway, not a tighter one");
     }
   }
 

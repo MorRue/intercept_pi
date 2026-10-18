@@ -141,9 +141,9 @@ Instead of a drift, give the plugin the weather and sea it drifted in:
 - **Leeway: include** — ticked (the default), the target drifts with the
   current plus the wind's leeway. Untick it to use the current alone: the
   leeway figures are not verified, so if you don't trust them you can
-  leave them out. The uncertainty ring then grows — the wind still pushes
-  the target, the plugin just doesn't estimate how much. Only available
-  with a GRIB file.
+  leave them out. The uncertainty ring then grows so that it also contains
+  where the target would be with leeway — the wind still pushes it, the
+  plugin just doesn't estimate how much. Only available with a GRIB file.
 - **Persons on board (optional)** — recorded with the case; it does not
   change the calculation.
 

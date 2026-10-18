@@ -83,8 +83,9 @@ struct AgedDatum {
   // include_leeway). When false the target drifted on current alone, and its
   // leeway counts as unknown in the uncertainty.
   bool leeway_applied = false;
-  // How far the leeway component alone moved the target (NM): the length of
-  // the summed leeway vector, not of its path. Divergence turns every step's
+  // How far the leeway component alone moved the target (NM) -- or, with
+  // leeway_applied false, would have moved it: the length of the summed
+  // leeway vector, not of its path. Divergence turns every step's
   // leeway by the same angle, which turns the sum by it too, so this is what
   // the divergence widening scales with -- a wind that backs and undoes its
   // own leeway adds no divergence.
@@ -153,7 +154,10 @@ struct DatumUncertainty {
   double drift_error_nm = 0.0;    // De = drift hours * DVe
   double e_nm = 0.0;              // IAMSAR E = sqrt(X^2 + De^2)
   double divergence_nm = 0.0;     // DivergenceOffsetNm(), 0 without leeway
-  double radius_nm = 0.0;         // e_nm + divergence_nm: what to draw
+  // With leeway switched off: how much the ring is widened so it still
+  // contains the leeway estimate's ring. 0 otherwise.
+  double leeway_off_nm = 0.0;
+  double radius_nm = 0.0;  // e_nm + divergence_nm + leeway_off_nm: what to draw
 };
 
 /**
@@ -164,8 +168,9 @@ struct DatumUncertainty {
  * The wind's own error (ASWDVe, 0.3 kt) only adds when the GRIB had wind;
  * without wind data the unknown-leeway term already stands for it. With
  * leeway switched off (AgedDatum::leeway_applied false) leeway counts as
- * unknown too: the target is still pushed by the wind, the estimate just
- * doesn't model it, so the circle must widen, not shrink. A
+ * unknown too, and the ring is widened to contain the leeway estimate's
+ * ring as well (leeway_off_nm): the target is still pushed by the wind, the
+ * estimate just doesn't model it, so the ring must grow, not shrink. A
  * manually entered set & drift is not data: both components stay unknown.
  * initial_error_nm is X.
  */

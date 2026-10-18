@@ -9,7 +9,9 @@ All notable changes to the Intercept plugin. This project follows
 - Leeway on/off: with a GRIB file, "Leeway: include" chooses whether the
   target drifts with the current plus leeway, or with the current alone for
   an operator who doesn't trust the unverified leeway figures. With leeway
-  off the uncertainty ring widens rather than shrinks.
+  off the uncertainty ring grows so that it also contains the leeway
+  estimate's ring -- switching the model off never makes the result look
+  more certain.
 - Uncertainty circle: a ring around the "Estimated position" mark, drawn by
   OpenCPN as a range ring on that mark, shows how far from it the target may
   be. The radius is IAMSAR's total probable error of position (reported
