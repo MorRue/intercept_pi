@@ -154,9 +154,60 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  macos:
+    name: macOS (universal, wxWidgets 3.2)
+    # macOS runners bill 10x Linux minutes, so this one runs only for a
+    # release tag, or by hand: Actions -> build -> "Run workflow".
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: macos-14
+    env:
+      # The universal wxWidgets 3.2 build OpenCPN's macOS app uses -- a
+      # plugin must link against that exact build. Pinned by checksum like
+      # gettext above; to update, download the file and put its shasum here.
+      MACOS_DEPS_URL: https://dl.cloudsmith.io/public/nohal/opencpn-plugins/raw/files/macos_deps_universal.tar.xz
+      MACOS_DEPS_SHA256: 36eca5efed89539b085649e4c4f691490c351a6fe463422153f775076db9dd54
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install build tools
+        run: brew install cmake gettext libexif openssl@3
+
+      - name: Install OpenCPN's prebuilt wxWidgets
+        run: |
+          curl -fsSL -o deps.tar.xz "$MACOS_DEPS_URL"
+          echo "$MACOS_DEPS_SHA256  deps.tar.xz" | shasum -a 256 -c -
+          sudo mkdir -p /usr/local
+          sudo tar -C /usr/local -xJf deps.tar.xz
+
+      - name: Configure
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+          "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+          "-DOCPN_TARGET_TUPLE=darwin-wx32;11;universal"
+
+      - name: Build tarball
+        run: cmake --build build --target tarball -j3
+
+      - name: Build and run tests
+        run: |
+          cmake --build build -j3
+          ctest --test-dir build --output-on-failure
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal-tarball
+          path: build/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     name: Release
-    needs: [linux, windows]
+    needs: [linux, windows, macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
