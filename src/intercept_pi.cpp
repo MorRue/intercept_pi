@@ -10,6 +10,8 @@
 #include <wx/wx.h>
 #endif
 
+#include <wx/fileconf.h>
+
 #include <algorithm>
 #include <cmath>
 #include <exception>
@@ -46,6 +48,27 @@ const wxString kCourseRouteGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a002");
 const wxString kTargetMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a003");
 const wxString kDriftTrackGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a004");
 const wxString kInterceptMarkGuid = wxT("a41a6b0e-70d1-4b7e-9c2c-49f0b0a1a005");
+
+// X, the probable error of the reported position itself (IAMSAR's initial
+// position error). A GPS-fixed report is far better than this and a
+// dead-reckoned one far worse; it should come from the panel eventually.
+constexpr double kAssumedInitialPositionErrorNm = 1.0;
+
+const wxColour kUncertaintyRingColour(230, 120, 0);
+
+// The user's range ring unit, for RangeRingStepForUnits(). This is
+// OpenCPN's own config object, shared with OpenCPN and every plugin, so its
+// current path is put back afterwards.
+int OpenCpnRangeRingUnits() {
+  wxFileConfig* cfg = GetOCPNConfigObject();
+  if (!cfg) return 0;
+  const wxString old_path = cfg->GetPath();
+  cfg->SetPath(wxT("/Settings"));
+  int units = 0;
+  cfg->Read(wxT("WaypointRangeRingsStepUnits"), &units, 0);
+  cfg->SetPath(old_path);
+  return units;
+}
 
 // Surface current + wind-driven leeway realistically stays well under this
 // even in a gale; a hand-typed drift_kt above it is a data-entry mistake
@@ -102,6 +125,8 @@ void Case::FinalizeDatum() {
   aged_lat = aged.lat;
   aged_lon = aged.lon;
   elapsed = aged.elapsed;
+  uncertainty = ComputeDatumUncertainty(aged, craft_type,
+                                        kAssumedInitialPositionErrorNm);
 }
 
 void Case::SolveIntercept(const OwnShipState& own) {
@@ -328,9 +353,17 @@ bool intercept_pi::UpdateChartObjects(const Case& c,
     g = kEstimatedMarkGuid;
     DeleteSingleWaypoint(g);
     if (show_estimated) {
-      PlugIn_Waypoint estimated(c.aged_lat, c.aged_lon, wxT("circle"),
-                                _("Estimated position"), kEstimatedMarkGuid);
-      AddSingleWaypoint(&estimated, /*b_permanent=*/false);
+      // The uncertainty circle is a range ring on this mark, so OpenCPN
+      // draws it -- no custom chart drawing (see CLAUDE.md).
+      const double radius_nm = c.uncertainty.radius_nm;
+      PlugIn_Waypoint_Ex estimated(
+          c.aged_lat, c.aged_lon, wxT("circle"), _("Estimated position"),
+          kEstimatedMarkGuid, /*ScaMin=*/1e9,
+          // The _Ex call hides the name unless asked; the plain one showed it.
+          /*bNameVisible=*/true, /*nRanges=*/radius_nm > 0.0 ? 1 : 0,
+          RangeRingStepForUnits(radius_nm, OpenCpnRangeRingUnits()),
+          kUncertaintyRingColour);
+      AddSingleWaypointEx(&estimated, /*b_permanent=*/false);
     }
   }
 

@@ -54,11 +54,25 @@ struct LeewayCoefficients {
  */
 LeewayCoefficients LookupLeewayCoefficients(const wxString& craft_type);
 
+/** Where ComputeAgedDatum took the drift from. */
+enum class DriftSource { kNone, kManual, kGrib };
+
 /** Result of ComputeAgedDatum: the drifted position and how long it drifted for. */
 struct AgedDatum {
   double lat = 0.0;
   double lon = 0.0;
   wxTimeSpan elapsed;
+
+  // What the drift was built from -- the uncertainty estimate depends on it.
+  DriftSource source = DriftSource::kNone;
+  // kGrib only: the GRIB supplied wind / current at every integration step.
+  // A step without one (grid doesn't cover the position, no such field)
+  // drifts on what is left, so that component counts as unknown.
+  bool wind_every_step = false;
+  bool current_every_step = false;
+  // Distance covered by the leeway component alone (NM), summed over the
+  // steps; what the leeway divergence widening scales with.
+  double leeway_nm = 0.0;
 };
 
 /**
@@ -85,6 +99,63 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
                            const wxDateTime& now, const wxString& craft_type,
                            const GribReader* grib,
                            const ManualSetAndDrift& manual);
+
+/**
+ * IAMSAR total probable drift velocity error (Vol II App. K):
+ * DVe = sqrt(ASWDVe^2 + TWCe^2 + LWe^2), all in knots -- the drift error due
+ * to the wind's error, the total water current error and the leeway error.
+ */
+double TotalDriftVelocityErrorKt(double aswdve_kt, double twce_kt,
+                                 double lwe_kt);
+
+/**
+ * IAMSAR total probable error of position, E = sqrt(X^2 + De^2) in NM, with
+ * X the initial position error and De = drift hours * DVe. IAMSAR's Y term
+ * (search facility position error) is left out: there is no search facility
+ * in this calculation.
+ */
+double TotalProbableErrorNm(double initial_error_nm, double drift_error_nm);
+
+/**
+ * Leeway diverges from downwind by up to +/- divergence_deg, side unknown,
+ * so IAMSAR plots a left and a right datum. ComputeAgedDatum uses pure
+ * downwind; both of those datums lie 2 * L * sin(divergence / 2) from it,
+ * L being the leeway distance. Adding this to E makes a circle around the
+ * pure-downwind datum that still contains both IAMSAR datums' E circles.
+ */
+double DivergenceOffsetNm(double leeway_nm, double divergence_deg);
+
+/**
+ * Leeway divergence angle by craft_type, matched like
+ * LookupLeewayCoefficients: "wooden" -> 50 deg (displacement hull; the
+ * published fishing-vessel example), anything else -> 30 deg (top of the
+ * liferaft range, Allen & Plourde 1999). Unverified -- see
+ * docs/LEEWAY_NEEDS_VERIFICATION.md.
+ */
+double LookupLeewayDivergenceDeg(const wxString& craft_type);
+
+/** How far from the estimated position the target may be. */
+struct DatumUncertainty {
+  double initial_error_nm = 0.0;  // X
+  double dve_kt = 0.0;            // total probable drift velocity error
+  double drift_error_nm = 0.0;    // De = drift hours * DVe
+  double e_nm = 0.0;              // IAMSAR E = sqrt(X^2 + De^2)
+  double divergence_nm = 0.0;     // DivergenceOffsetNm(), 0 without leeway
+  double radius_nm = 0.0;         // e_nm + divergence_nm: what to draw
+};
+
+/**
+ * Uncertainty around an aged datum. Each drift component gets IAMSAR's
+ * default probable error when it is known (0.3 kt each for the wind's
+ * effect, the current and the leeway, as in the Vol II App. Q example) and
+ * a larger one when it is not (0.5 kt for an unknown current, and for
+ * unknown leeway), so missing data widens the circle instead of shrinking
+ * it. A manually entered set & drift counts as known current + leeway with
+ * no separate wind term. initial_error_nm is X.
+ */
+DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
+                                         const wxString& craft_type,
+                                         double initial_error_nm);
 
 /**
  * Vector sum of two (speed, true direction the vector points TOWARD)

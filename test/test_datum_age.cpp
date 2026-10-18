@@ -67,6 +67,21 @@ int main(int argc, char** argv) {
     Check(aged.lon == lon, "zero-drift: aged lon equals reported lon");
     Check(aged.elapsed.GetSeconds().ToLong() == 7200,
           "zero-drift: elapsed is 2 hours");
+
+    // No drift data: current and leeway both unknown (0.5 kt each), so the
+    // circle grows with time even though the datum doesn't move.
+    Check(aged.source == DriftSource::kNone, "zero-drift: source is none");
+    DatumUncertainty u =
+        ComputeDatumUncertainty(aged, "Wooden boat (displacement hull)", 1.0);
+    const double dve = std::sqrt(0.5 * 0.5 + 0.5 * 0.5);
+    Check(std::fabs(u.dve_kt - dve) < 1e-9,
+          "zero-drift uncertainty: DVe from two unknown components");
+    Check(std::fabs(u.drift_error_nm - 2.0 * dve) < 1e-9,
+          "zero-drift uncertainty: De = 2 h * DVe");
+    Check(std::fabs(u.e_nm - std::sqrt(1.0 + 4.0 * dve * dve)) < 1e-9,
+          "zero-drift uncertainty: E = sqrt(X^2 + De^2)");
+    Check(u.divergence_nm == 0.0 && u.radius_nm == u.e_nm,
+          "zero-drift uncertainty: no leeway, so no divergence term");
   }
 
   // (2) Manual set & drift, no GRIB: due-east drift is a degenerate case of
@@ -101,6 +116,21 @@ int main(int argc, char** argv) {
           "manual: due-east drift matches predicted longitude");
     Check(aged.elapsed.GetSeconds().ToLong() == 3600,
           "manual: elapsed is 1 hour");
+
+    // Entered set & drift: current and leeway known (0.3 kt each), no wind.
+    Check(aged.source == DriftSource::kManual, "manual: source is manual");
+    DatumUncertainty u =
+        ComputeDatumUncertainty(aged, "Wooden boat (displacement hull)", 1.0);
+    Check(std::fabs(u.dve_kt - std::sqrt(0.3 * 0.3 + 0.3 * 0.3)) < 1e-9,
+          "manual uncertainty: DVe from known current + leeway");
+    Check(u.divergence_nm == 0.0,
+          "manual uncertainty: no separate leeway, so no divergence term");
+
+    // Missing data must widen the circle, never shrink it.
+    AgedDatum unknown = aged;
+    unknown.source = DriftSource::kNone;
+    Check(ComputeDatumUncertainty(unknown, "", 1.0).radius_nm > u.radius_nm,
+          "uncertainty: no drift data gives a larger radius than manual");
   }
 
   // (3) GRIB-sourced: fixture (a) from the GribReader test (10 m wind only,
@@ -155,6 +185,24 @@ int main(int argc, char** argv) {
             "GRIB-sourced: aged lon matches leeway-only prediction");
       Check(aged.elapsed.GetSeconds().ToLong() == 1800,
             "GRIB-sourced: elapsed is 30 minutes");
+
+      // The fixture has wind but no current: wind known, current unknown.
+      Check(aged.source == DriftSource::kGrib, "GRIB-sourced: source is GRIB");
+      Check(aged.wind_every_step, "GRIB-sourced: wind at every step");
+      Check(!aged.current_every_step,
+            "GRIB-sourced: no current in this fixture");
+      Check(std::fabs(aged.leeway_nm - distance_nm) < 1e-9,
+            "GRIB-sourced: leeway distance = leeway speed * 30 min");
+      DatumUncertainty u = ComputeDatumUncertainty(aged, craft_type, 1.0);
+      Check(std::fabs(u.dve_kt -
+                      std::sqrt(0.3 * 0.3 + 0.5 * 0.5 + 0.3 * 0.3)) < 1e-9,
+            "GRIB-sourced uncertainty: missing current counts as unknown");
+      Check(std::fabs(u.divergence_nm -
+                      2.0 * distance_nm * std::sin(15.0 * M_PI / 180.0)) <
+                1e-9,
+            "GRIB-sourced uncertainty: +/-30 deg divergence for a rubber boat");
+      Check(std::fabs(u.radius_nm - (u.e_nm + u.divergence_nm)) < 1e-12,
+            "GRIB-sourced uncertainty: radius = E + divergence");
     }
   }
 

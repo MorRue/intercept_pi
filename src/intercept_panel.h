@@ -125,6 +125,7 @@ private:
   std::optional<OwnShipState> m_last_own;
 
   wxStaticText* m_out_datum;
+  wxStaticText* m_out_uncertainty;
   wxStaticText* m_out_drift;
   wxStaticText* m_out_moved;
   wxStaticText* m_out_elapsed;

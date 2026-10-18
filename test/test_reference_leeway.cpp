@@ -364,9 +364,47 @@ int main() {
       Check(distance_nm <= tolerance_nm,
             "reference example: datum lands within 5 NM of the pure-downwind "
             "expected position");
+
+      Check(aged.source == DriftSource::kGrib && aged.wind_every_step &&
+                aged.current_every_step,
+            "reference example: wind and current known at every step");
+      Check(std::fabs(aged.leeway_nm - 0.036 * wind_speed_kt * drift_hours) <
+                0.05,
+            "reference example: leeway distance = leeway speed * drift time");
     }
 
     wxRemoveFile(temp_path);
+  }
+
+  // (c) Uncertainty: the example's "Total probable error of position (E)"
+  // worksheet. ASWDVe 0.3, TWCe 0.42, LWe 0.3 kt -> DVe 0.60 kt; X 29.6 NM,
+  // De = 18.75 h * 0.6 kt = 11.25 NM -> E 31.67 NM (its Y = 0.1 NM adds
+  // under 0.001 NM and is left out here, as in the code).
+  {
+    Check(std::fabs(TotalDriftVelocityErrorKt(0.3, 0.42, 0.3) - 0.60) < 0.005,
+          "reference example: DVe = 0.60 kt");
+    Check(std::fabs(TotalProbableErrorNm(29.6, 18.75 * 0.6) - 31.67) < 0.01,
+          "reference example: E = 31.67 NM");
+
+    // Divergence: the example's left / right-of-downwind datums must both
+    // lie DivergenceOffsetNm() from the pure-downwind datum the code
+    // computes (leeway 1.3 kt * 18.75 h, +/-50 deg; the three positions are
+    // in docs/LEEWAY_NEEDS_VERIFICATION.md).
+    const double pure_lat = 37.0 + 52.6 / 60.0;
+    const double pure_lon = -(65.0 + 0.7 / 60.0);
+    const double left_lat = 37.0 + 48.7 / 60.0;
+    const double left_lon = -(65.0 + 26.3 / 60.0);
+    const double right_lat = 37.0 + 39.6 / 60.0;
+    const double right_lon = -(64.0 + 40.5 / 60.0);
+    const double offset = DivergenceOffsetNm(1.3 * 18.75, 50.0);
+    Check(std::fabs(DistanceNm(pure_lat, pure_lon, left_lat, left_lon) -
+                    offset) < 0.5,
+          "reference example: left datum lies the divergence offset away");
+    Check(std::fabs(DistanceNm(pure_lat, pure_lon, right_lat, right_lon) -
+                    offset) < 0.5,
+          "reference example: right datum lies the divergence offset away");
+    Check(LookupLeewayDivergenceDeg("Wooden boat (displacement hull)") == 50.0,
+          "reference example: a wooden hull gets the example's +/-50 deg");
   }
 
   if (g_failures > 0) {

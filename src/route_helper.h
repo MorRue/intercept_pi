@@ -27,4 +27,11 @@ std::vector<GeoPoint> BuildInterceptWaypoints(double own_lat, double own_lon,
                                                double datum_lat,
                                                double datum_lon);
 
+// The spacing to give an OpenCPN range ring for a radius of distance_nm.
+// The plugin API sets a ring's spacing but not its unit, so OpenCPN reads it
+// in the user's ring unit: OpenCPN's /Settings/WaypointRangeRingsStepUnits,
+// 0 = nautical miles, 1 = kilometres. Any other value is taken as NM, the
+// OpenCPN default.
+double RangeRingStepForUnits(double distance_nm, int ocpn_ring_units);
+
 #endif  // INTERCEPT_PI_ROUTE_HELPER_H__

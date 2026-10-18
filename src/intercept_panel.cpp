@@ -295,6 +295,14 @@ InterceptPanel::InterceptPanel(wxWindow* parent, intercept_pi* plugin)
     rsubhead(_("Target"));
     auto* tg = rgrid();
     m_out_datum = AddRow(bp, tg, _("Estimated position (now):"));
+    m_out_uncertainty = AddRow(bp, tg, _("Uncertainty radius:"));
+    m_out_uncertainty->SetToolTip(
+        _("How far from the estimated position the target may be: the IAMSAR "
+          "total probable error of position (reported-position error plus "
+          "drift error, which grows with time and with missing wind or "
+          "current data), plus an allowance for leeway diverging to either "
+          "side of downwind. Drawn as a ring around the estimated position. "
+          "Not verified for operational use."));
     m_out_drift = AddRow(bp, tg, _("Drift applied:"));
     m_out_moved = AddRow(bp, tg, _("Moved from report:"));
     m_out_elapsed = AddRow(bp, tg, _("Elapsed since report:"));
@@ -719,6 +727,15 @@ void InterceptPanel::FitToScreen() {
 void InterceptPanel::ShowOutputs(const Case& c,
                                  const std::optional<OwnShipState>& own) {
   m_out_datum->SetLabel(FormatPosition(c.aged_lat, c.aged_lon));
+
+  wxString uncertainty = wxString::Format(
+      _("%s NM"), Wx(FormatDistanceNm(c.uncertainty.radius_nm)));
+  if (c.uncertainty.divergence_nm >= 0.05) {
+    uncertainty += wxString::Format(
+        _(" (incl. %s NM leeway divergence)"),
+        Wx(FormatDistanceNm(c.uncertainty.divergence_nm)));
+  }
+  m_out_uncertainty->SetLabel(uncertainty);
 
   if (c.has_manual_drift) {
     m_out_drift->SetLabel(wxString::Format(_("%s deg, %.1f kt (entered)"),

@@ -73,6 +73,15 @@ int main() {
     }
   }
 
+  // (4) Range ring spacing in the user's OpenCPN ring unit.
+  {
+    Check(RangeRingStepForUnits(10.0, 0) == 10.0, "ring units 0: NM as is");
+    Check(std::fabs(RangeRingStepForUnits(10.0, 1) - 18.52) < 1e-9,
+          "ring units 1: NM -> km");
+    Check(RangeRingStepForUnits(10.0, 7) == 10.0,
+          "ring units unknown: NM, OpenCPN's default");
+  }
+
   if (g_failures > 0) {
     std::fprintf(stderr, "%d check(s) failed\n", g_failures);
     return 1;

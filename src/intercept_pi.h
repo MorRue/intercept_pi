@@ -20,6 +20,7 @@
 #include <optional>
 #include <vector>
 
+#include "datum_age.h"
 #include "ocpn_plugin.h"
 #include "position_parse.h"
 
@@ -52,6 +53,9 @@ struct Case {
   double aged_lat = 0.0;
   double aged_lon = 0.0;
   wxTimeSpan elapsed;
+  // Also set by FinalizeDatum(): how far from (aged_lat, aged_lon) the
+  // target may be. uncertainty.radius_nm is the circle shown on the chart.
+  DatumUncertainty uncertainty;
 
   // Set by SolveIntercept(): the moving-target intercept -- where own-ship
   // meets the target if the target keeps drifting during the transit. When

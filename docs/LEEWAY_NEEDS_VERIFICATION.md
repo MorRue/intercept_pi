@@ -141,6 +141,32 @@ check): `LookupLeewayCoefficients(<default>)` × wind must
   Vol III p.3-18) at 10, 20, 30 and 40 kt — confirms the *slope*, not just one
   mid-range point.
 
+## Uncertainty circle (`ComputeDatumUncertainty`)
+
+The ring around the estimated position has radius **E + divergence**:
+
+- **E** — IAMSAR's total probable error of position, `E = √(X² + De²)`,
+  `De = drift hours × DVe`, `DVe = √(ASWDVe² + TWCe² + LWe²)` (Vol II
+  App. K; the formula and the App. Q figures DVe 0.60 kt / E 31.67 NM are
+  pinned by `test/test_reference_leeway.cpp`). IAMSAR's Y (search facility
+  error) is left out — there is no search facility in this calculation.
+- **Divergence** — the code uses pure downwind, so IAMSAR's left and right
+  datums both lie `2 · L · sin(θ/2)` from it (L = leeway distance, θ = the
+  divergence angle). Adding that to E makes a circle that still contains both
+  datums' E circles. Checked against App. Q: both published datums lie
+  20.6 NM from the pure-downwind datum, which is exactly this offset.
+
+**Values that need a SAR reviewer** (all in `src/datum_age.cpp` /
+`src/intercept_pi.cpp`):
+
+| value | used | why it's a guess |
+|---|---|---|
+| X, initial position error | 1 NM, fixed | a GPS-fixed report is far better, a DR position far worse (App. Q: 29.6 NM); should become a panel input |
+| ASWDVe / TWCe / LWe when the data covers that component | 0.3 kt each | IAMSAR's App. Q values; GRIB currents may deserve a larger TWCe (App. Q's computed current had 0.42) |
+| the same when the data does not (no GRIB / no current in the GRIB / no wind) | 0.5 kt | a deliberately wider guess so missing data grows the circle |
+| manually entered set & drift | TWCe + LWe 0.3 kt, no divergence | it is a total-drift estimate with no separate leeway |
+| divergence angle | wooden 50°, everything else 30° | App. Q fishing vessel ±50°; top of the liferaft range ±15–30° |
+
 ## Sources
 
 - IAMSAR Manual **Vol II** (Mission Co-ordination), 7th ed. 2017 — §4.4,

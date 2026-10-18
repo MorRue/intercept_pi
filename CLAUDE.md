@@ -76,7 +76,7 @@ by `test_position_parse`), `intercept_panel.{h,cpp}` (the UI), `datum_age.{h,cpp
    (two craft buckets, no divergence, single default coefficient) still want
    a SAR-literate review —
    `docs/LEEWAY_NEEDS_VERIFICATION.md`.
-3. Uncertainty radius: position error + drift error
+3. Uncertainty radius: position error + drift error — done (range ring)
 4. Intercept: course to steer + range + ETA. The **static form** (steer to the
    datum, no lead angle — the datum already = reported position with no drift
    data) ships first as the usable v0.1; the **moving form** leads the drifting
@@ -301,67 +301,26 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    No custom `RenderOverlay` drawing — see "No custom chart drawing" above.
    **This is the usable v0.1.**
 
-3. **Uncertainty radius on the `Case`** (Planned direction #3). Compute the
-   total probable error of position `E` around the aged datum, per IAMSAR
-   Vol II §4.5 / Appendix K (the "Total probable error of position" and
-   "Datum" worksheets; the F/V SAMPLE worked example is Appendix Q). Method:
-
-       E = sqrt(X^2 + De^2)          (drop IAMSAR's Y term — no search
-                                      facility in this calculation)
-       De = drift_interval_hours * DVe
-       DVe = sqrt(LWe^2 + TWCe^2)    (leeway + current velocity errors)
-
-   - `LWe` (leeway probable error) is craft-config dependent — 0.1–0.35 kt
-     from the IAMSAR Fig N-2 table in `docs/LEEWAY_NEEDS_VERIFICATION.md`. For
-     the two-bucket model use a single conservative value (~0.3 kt); a
-     `LookupLeewayError(craft_type)` alongside `LookupLeewayCoefficients` is
-     fine.
-   - `TWCe`: if the current came from a GRIB, a fixed estimate (~0.3 kt,
-     IAMSAR's default for an unverified current); if manual set & drift, same.
-   - `X` (initial position error): needs an input. Simplest first cut — a
-     fixed small value (e.g. 1 NM) with a `// TODO` to derive it from how the
-     position was entered / a dialog field. Don't build the dialog field in
-     this task.
-   - With **no** environmental input, drift is zero but `De` is *not* — widen
-     it to represent "drift unknown" (e.g. assume up to ~0.5 kt over the
-     interval). The uncertainty must grow, not vanish, when data is missing.
-   - Because the datum uses pure downwind (no divergence), note in a comment
-     that `E` should really also cover the ±15–30° leeway divergence fan
-     (`docs/LEEWAY_NEEDS_VERIFICATION.md`); a full divergence model is a later
-     task, but a rough widening term here is acceptable.
-
-   Store `E` (NM) on the `Case` next to `aged_lat`/`aged_lon`. Unit-test in
-   `test_datum_age.cpp` or a new file: the Appendix Q sub-results are clean
-   checks — `DVe` = 0.60 kt and `De` = 18.75 h × 0.60 = 11.25 NM. Keep the
-   public API additive.
-
-   **Show it as a range ring on the "Estimated position" mark** — no custom
-   drawing (see "No custom chart drawing" above). In `UpdateChartObjects`,
-   create that mark as a `PlugIn_Waypoint_Ex` via `AddSingleWaypointEx`
-   (api-18 has it) with `nrange_rings = 1`, `RangeRingSpace = E`, and a
-   distinct `RangeRingColor`; everything else about the mark stays as it is
-   (same GUID, delete-before-add, left alone while it is OpenCPN's active
-   waypoint). Things to get right:
-   - **Units.** The api-18 `AddSingleWaypointEx` sets ring number, spacing
-     and colour but *not* the spacing unit, so OpenCPN uses the user's
-     default ring unit: `/Settings/WaypointRangeRingsStepUnits` in
-     OpenCPN's config, 0 = nautical miles, 1 = kilometres (checked against
-     OpenCPN's `navutil.cpp` / `options.cpp`). Read it with
-     `GetOCPNConfigObject()` (the plugin already asks for `WANTS_CONFIG`) and
-     convert `E` to km when it is 1 — otherwise the circle is 1.852× off.
-     Keep the conversion a pure, unit-tested function.
-   - "Show estimated position" off hides the mark and therefore the ring;
-     that's fine for now.
-   - `E` itself is unit-tested (above); the ring can only be checked by eye
-     in OpenCPN — say so in the PR, with what to look at.
-   - The Windows build hasn't linked the `*Ex` waypoint calls yet; if MSVC
-     reports a missing symbol, it's the same class of problem as the
-     `Plugin_WaypointList` workaround in #2(b).
-
-4. **Search patterns** (Planned direction #5): expanding square, sector,
+3. **Search patterns** (Planned direction #5): expanding square, sector,
    parallel track, emitted as OpenCPN routes centred on the datum.
 
 *Landed:*
+- Uncertainty circle (Planned direction #3) — `ComputeDatumUncertainty`
+  (`datum_age.{h,cpp}`) fills `Case::uncertainty` in `FinalizeDatum()`:
+  IAMSAR `E = √(X² + De²)`, `DVe = √(ASWDVe² + TWCe² + LWe²)` (the
+  ASWDVe term was missing from the original plan), plus a leeway-divergence
+  allowance `2·L·sin(θ/2)` because the datum is pure downwind. Each drift
+  component gets 0.3 kt when the data covers it and 0.5 kt when it doesn't
+  (`AgedDatum::source` / `wind_every_step` / `current_every_step`), so missing
+  data widens the circle. `X` is a fixed 1 NM for now
+  (`kAssumedInitialPositionErrorNm`) — a panel input is the natural next
+  step. Drawn as a range ring on the "Estimated position" mark
+  (`AddSingleWaypointEx`, name kept visible explicitly), spacing converted
+  to the user's ring unit by `RangeRingStepForUnits` from OpenCPN's
+  `/Settings/WaypointRangeRingsStepUnits`. Pinned against the IAMSAR worked
+  example (DVe 0.60 kt, E 31.67 NM, both divergence datums 20.6 NM away) in
+  `test_reference_leeway`; the default error values are listed for SAR
+  review in `docs/LEEWAY_NEEDS_VERIFICATION.md`.
 - Datum ageing (PR #5) — `ComputeAgedDatum` / `FinalizeDatum` on the `Case`,
   GRIB and manual set & drift as sources, drift optional.
 - Moving-target intercept — `SolveMovingIntercept` (`src/intercept_solve.{h,cpp}`,

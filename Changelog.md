@@ -6,6 +6,14 @@ All notable changes to the Intercept plugin. This project follows
 ## [Unreleased]
 
 ### Added
+- Uncertainty circle: a ring around the "Estimated position" mark, drawn by
+  OpenCPN as a range ring on that mark, shows how far from it the target may
+  be. The radius is IAMSAR's total probable error of position (reported
+  position error plus a drift error that grows with time and with missing
+  wind or current data) plus an allowance for leeway diverging to either
+  side of downwind. The panel shows it as "Uncertainty radius". Checked
+  against the published IAMSAR worked example; the default error values are
+  unverified (see `docs/LEEWAY_NEEDS_VERIFICATION.md`).
 - Automatic recalculation: "Auto-recalculate every N min" (1-60) at the
   bottom of the Result box repeats Recalculate on a timer, with the live GPS
   fix and the current time, and keeps updating the chart while the panel is

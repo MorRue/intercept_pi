@@ -16,6 +16,11 @@ namespace {
 double Finite(double v) { return std::isfinite(v) ? v : 0.0; }
 }  // namespace
 
+double RangeRingStepForUnits(double distance_nm, int ocpn_ring_units) {
+  constexpr double kKmPerNm = 1.852;
+  return ocpn_ring_units == 1 ? distance_nm * kKmPerNm : distance_nm;
+}
+
 std::vector<GeoPoint> BuildInterceptWaypoints(double own_lat, double own_lon,
                                                double datum_lat,
                                                double datum_lon) {

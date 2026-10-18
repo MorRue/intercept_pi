@@ -22,6 +22,12 @@ constexpr long kStepSeconds = 1800;  // 30 minutes.
 // kStepSeconds instead of the step count growing past kMaxSteps.
 constexpr long kMaxSteps = 2000;
 
+// IAMSAR default probable errors (Vol II App. Q uses 0.3 kt for each) for a
+// drift component the data covers, and a wider guess for one it doesn't.
+// Unverified defaults -- see docs/LEEWAY_NEEDS_VERIFICATION.md.
+constexpr double kKnownComponentErrorKt = 0.3;
+constexpr double kUnknownComponentErrorKt = 0.5;
+
 double NormalizeDegrees(double deg) {
   double d = std::fmod(deg, 360.0);
   if (d < 0.0) d += 360.0;
@@ -120,6 +126,7 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
   if (!grib && !manual.available) {
     return result;  // Zero drift: aged datum equals reported position.
   }
+  result.source = grib ? DriftSource::kGrib : DriftSource::kManual;
 
   const LeewayCoefficients leeway = LookupLeewayCoefficients(craft_type);
 
@@ -145,6 +152,8 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
   double lon = reported_lon;
   wxDateTime step_time = time_of_report;
   long remaining_seconds = total_seconds;
+  bool wind_every_step = true;
+  bool current_every_step = true;
 
   while (remaining_seconds > 0) {
     long this_step_seconds = std::min(step_seconds, remaining_seconds);
@@ -155,6 +164,8 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
     if (grib) {
       EnvSample wind = grib->LookupWind(lat, lon, step_time);
       EnvSample current = grib->LookupCurrent(lat, lon, step_time);
+      if (!wind.available) wind_every_step = false;
+      if (!current.available) current_every_step = false;
 
       double leeway_speed_kt = 0.0;
       double leeway_dir_deg = 0.0;
@@ -163,6 +174,7 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
             std::max(0.0, leeway.speed_pct_of_wind * wind.speed_kt +
                               leeway.speed_constant_kt);
         leeway_dir_deg = NormalizeDegrees(wind.direction_deg + 180.0);
+        result.leeway_nm += leeway_speed_kt * (this_step_seconds / 3600.0);
       }
 
       if (current.available && wind.available) {
@@ -196,5 +208,66 @@ AgedDatum ComputeAgedDatum(double reported_lat, double reported_lon,
 
   result.lat = lat;
   result.lon = lon;
+  if (grib) {
+    result.wind_every_step = wind_every_step;
+    result.current_every_step = current_every_step;
+  }
   return result;
+}
+
+double TotalDriftVelocityErrorKt(double aswdve_kt, double twce_kt,
+                                 double lwe_kt) {
+  return std::sqrt(aswdve_kt * aswdve_kt + twce_kt * twce_kt +
+                   lwe_kt * lwe_kt);
+}
+
+double TotalProbableErrorNm(double initial_error_nm, double drift_error_nm) {
+  return std::sqrt(initial_error_nm * initial_error_nm +
+                   drift_error_nm * drift_error_nm);
+}
+
+double DivergenceOffsetNm(double leeway_nm, double divergence_deg) {
+  return 2.0 * leeway_nm * std::sin(ToRad(divergence_deg) / 2.0);
+}
+
+double LookupLeewayDivergenceDeg(const wxString& craft_type) {
+  return craft_type.Lower().Contains("wooden") ? 50.0 : 30.0;
+}
+
+DatumUncertainty ComputeDatumUncertainty(const AgedDatum& aged,
+                                         const wxString& craft_type,
+                                         double initial_error_nm) {
+  // Drift error per component: the wind's effect on drift (ASWDVe), the
+  // water current (TWCe), the leeway (LWe).
+  double aswdve = 0.0;
+  double twce = kUnknownComponentErrorKt;
+  double lwe = kUnknownComponentErrorKt;
+  switch (aged.source) {
+    case DriftSource::kNone:
+      break;  // Nothing known about the drift: both components unknown.
+    case DriftSource::kManual:
+      // An entered set & drift is the operator's estimate of the total --
+      // current and leeway together -- with no wind sample behind it.
+      twce = kKnownComponentErrorKt;
+      lwe = kKnownComponentErrorKt;
+      break;
+    case DriftSource::kGrib:
+      if (aged.wind_every_step) {
+        aswdve = kKnownComponentErrorKt;
+        lwe = kKnownComponentErrorKt;
+      }
+      if (aged.current_every_step) twce = kKnownComponentErrorKt;
+      break;
+  }
+
+  DatumUncertainty u;
+  u.initial_error_nm = initial_error_nm;
+  u.dve_kt = TotalDriftVelocityErrorKt(aswdve, twce, lwe);
+  const double hours = aged.elapsed.GetSeconds().ToDouble() / 3600.0;
+  u.drift_error_nm = hours * u.dve_kt;
+  u.e_nm = TotalProbableErrorNm(initial_error_nm, u.drift_error_nm);
+  u.divergence_nm =
+      DivergenceOffsetNm(aged.leeway_nm, LookupLeewayDivergenceDeg(craft_type));
+  u.radius_nm = u.e_nm + u.divergence_nm;
+  return u;
 }
