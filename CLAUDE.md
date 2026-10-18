@@ -41,6 +41,15 @@ symbols — like a `ServiceLoader` entry point.
   artifact loads on more crew machines than one built on the newer CI host or
   a dev box. Never ship a locally built `.so` — release artifacts come from CI.
 - **GPLv3+**, inherited from the template.
+- **No custom chart drawing.** Everything the plugin shows on the chart is
+  an OpenCPN object — marks, routes, tracks, and waypoint range rings —
+  never `RenderOverlay` / `RenderGLOverlay`. Custom drawing has to be written
+  twice (OpenCPN's OpenGL mode, the default, and its plain-DC mode), shares
+  drawing state with OpenCPN and other plugins, and can only be checked in a
+  running OpenCPN. A circle is a range ring on a mark; any other shape (an
+  ellipse, the leeway divergence fan) is a closed `PlugIn_Track` whose
+  points the plugin computes. The headless overlay-harness PR was closed for
+  this reason; don't rebuild it.
 
 ## State
 
@@ -289,30 +298,10 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
      `intercept_pi.cpp` provides them locally under `#if defined(_MSC_VER)`
      with `WX_DEFINE_LIST`; Linux gets them from OpenCPN's shared lib so the
      guard must stay MSVC-only or Linux gets a duplicate-symbol error.
-   Do **not** build a `RenderOverlay` custom overlay yet — see #3.
+   No custom `RenderOverlay` drawing — see "No custom chart drawing" above.
    **This is the usable v0.1.**
 
-3. **Headless overlay smoke-test harness** (infra, do before any custom
-   chart drawing). A `RenderOverlay(wxDC&, PlugIn_ViewPort*)` overlay can't
-   be verified by `ctest` today, so the loop is blind to it. Set that up:
-   - Factor the drawing into a free function
-     `DrawInterceptOverlay(wxDC& dc, const OverlayViewport& vp, const OverlayState& s)`
-     where `OverlayViewport` is a tiny struct holding just what the drawing
-     needs (pixel size, and a `LatLonToPix(lat, lon) -> wxPoint` supplied by
-     the caller — OpenCPN's `GetCanvasPixLL` in the plugin, a fake in tests).
-   - New CTest target `test_overlay`: render `DrawInterceptOverlay` into a
-     `wxBitmap` via `wxMemoryDC`, then assert on pixels — a non-background
-     pixel near where the datum projects, line endpoints at expected pixels,
-     nothing drawn when `OverlayState` is empty, no crash for an off-screen
-     datum. Add `xvfb-run` to the Linux CI step (`sudo apt-get install -y
-     xvfb`, wrap the ctest invocation) — `wxBitmap`/`wxMemoryDC` need an X
-     connection on Linux. Windows CI can skip this target.
-   - This does not catch "looks ugly / wrong colour / labels collide" — that
-     stays a human review in OpenCPN — but it catches wrong projection math,
-     off-screen draws, crashes, and draw-when-shouldn't, which is most of the
-     way there. It pays off across #4 and #6.
-
-4. **Uncertainty radius on the `Case`** (Planned direction #3). Compute the
+3. **Uncertainty radius on the `Case`** (Planned direction #3). Compute the
    total probable error of position `E` around the aged datum, per IAMSAR
    Vol II §4.5 / Appendix K (the "Total probable error of position" and
    "Datum" worksheets; the F/V SAMPLE worked example is Appendix Q). Method:
@@ -344,11 +333,32 @@ anyway; datum ageing then *refines* it rather than being built in a vacuum.
    Store `E` (NM) on the `Case` next to `aged_lat`/`aged_lon`. Unit-test in
    `test_datum_age.cpp` or a new file: the Appendix Q sub-results are clean
    checks — `DVe` = 0.60 kt and `De` = 18.75 h × 0.60 = 11.25 NM. Keep the
-   public API additive. Then draw it as a circle around the datum — this is
-   the first custom `RenderOverlay` drawing; use the #3 harness (`test_overlay`
-   asserts a ring of set pixels at radius `E` around the projected datum).
+   public API additive.
 
-5. **Search patterns** (Planned direction #5): expanding square, sector,
+   **Show it as a range ring on the "Estimated position" mark** — no custom
+   drawing (see "No custom chart drawing" above). In `UpdateChartObjects`,
+   create that mark as a `PlugIn_Waypoint_Ex` via `AddSingleWaypointEx`
+   (api-18 has it) with `nrange_rings = 1`, `RangeRingSpace = E`, and a
+   distinct `RangeRingColor`; everything else about the mark stays as it is
+   (same GUID, delete-before-add, left alone while it is OpenCPN's active
+   waypoint). Things to get right:
+   - **Units.** The api-18 `AddSingleWaypointEx` sets ring number, spacing
+     and colour but *not* the spacing unit, so OpenCPN uses the user's
+     default ring unit: `/Settings/WaypointRangeRingsStepUnits` in
+     OpenCPN's config, 0 = nautical miles, 1 = kilometres (checked against
+     OpenCPN's `navutil.cpp` / `options.cpp`). Read it with
+     `GetOCPNConfigObject()` (the plugin already asks for `WANTS_CONFIG`) and
+     convert `E` to km when it is 1 — otherwise the circle is 1.852× off.
+     Keep the conversion a pure, unit-tested function.
+   - "Show estimated position" off hides the mark and therefore the ring;
+     that's fine for now.
+   - `E` itself is unit-tested (above); the ring can only be checked by eye
+     in OpenCPN — say so in the PR, with what to look at.
+   - The Windows build hasn't linked the `*Ex` waypoint calls yet; if MSVC
+     reports a missing symbol, it's the same class of problem as the
+     `Plugin_WaypointList` workaround in #2(b).
+
+4. **Search patterns** (Planned direction #5): expanding square, sector,
    parallel track, emitted as OpenCPN routes centred on the datum.
 
 *Landed:*
