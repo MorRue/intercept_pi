@@ -100,21 +100,28 @@ jobs:
 
       - name: Install gettext
         shell: pwsh
-        # PluginLibs.cmake does find_package(Gettext REQUIRED). The old step
-        # pulled it from Poedit, whose installer URL now 404s. Use the
-        # prebuilt Windows binaries from mlocati/gettext-iconv-windows
-        # (stable GitHub release assets) and put them on PATH for Configure.
+        # PluginLibs.cmake does find_package(Gettext REQUIRED). Prebuilt
+        # Windows binaries from mlocati/gettext-iconv-windows, pinned to one
+        # release and checked against its SHA-256: no GitHub API call (the
+        # runner's anonymous API quota ran out and failed builds), and a
+        # changed or replaced file fails the build instead of being run.
+        # To update: pick a newer release asset, download it, and put its
+        # URL and `shasum -a 256` here.
+        env:
+          GETTEXT_URL: https://github.com/mlocati/gettext-iconv-windows/releases/download/v1.0-v1.19/gettext1.0-iconv1.19-static-64.zip
+          GETTEXT_SHA256: 2b999bc37b56fa052ff98578e9cb188152009f634e3a66aa8ff263a016e9c466
         run: |
-          $rel = Invoke-RestMethod 'https://api.github.com/repos/mlocati/gettext-iconv-windows/releases/latest'
-          $asset = $rel.assets | Where-Object { $_.name -like '*-static-64.zip' } | Select-Object -First 1
-          if (-not $asset) { throw "no static-64 asset in $($rel.tag_name)" }
+          Invoke-WebRequest -Uri $env:GETTEXT_URL -OutFile gettext.zip
+          $hash = (Get-FileHash gettext.zip -Algorithm SHA256).Hash
+          if ($hash -ne $env:GETTEXT_SHA256) {
+            throw "gettext.zip SHA-256 is $hash, expected $env:GETTEXT_SHA256"
+          }
           $dest = Join-Path $env:RUNNER_TEMP 'gettext'
-          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile gettext.zip
           Expand-Archive -Path gettext.zip -DestinationPath $dest -Force
           $bin = Get-ChildItem $dest -Recurse -Filter msgmerge.exe |
                  Select-Object -First 1 -ExpandProperty DirectoryName
           if (-not $bin) { throw 'msgmerge.exe not found in the gettext archive' }
-          Write-Host "gettext bin: $bin ($($rel.tag_name))"
+          Write-Host "gettext bin: $bin"
           Add-Content -Path $env:GITHUB_PATH -Value $bin
           & "$bin\msgmerge.exe" --version | Select-Object -First 1
 

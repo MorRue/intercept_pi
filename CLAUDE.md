@@ -161,7 +161,7 @@ trees and configure again; git itself survives a rename untouched.
 
 - **CI** (`build.yml`): Linux builds in a `debian:bookworm` container (wx 3.2
   in apt) on every push and PR. Windows (MSVC Win32, prebuilt wxWidgets 3.2.6,
-  gettext from Poedit) also runs on every push/PR for now — it's ~2 min with
+  gettext pinned by URL + SHA-256 from mlocati/gettext-iconv-windows) also runs on every push/PR for now — it's ~2 min with
   the wx binaries cached, but it counts 2× against the private-repo Actions
   budget, so consider narrowing it to tags + `workflow_dispatch` if minutes
   get tight.
