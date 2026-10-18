@@ -57,8 +57,8 @@ it to reach the lower boxes. Scrolling with the mouse wheel over a number
 field scrolls the panel; it only changes the number once you have clicked
 into that field.
 
-Labels may appear partly in your OpenCPN language: OpenCPN translates
-common words such as "Own ship" or "Clear" itself.
+The panel is in English: the plugin has no translations yet. Dialog
+buttons such as "OK" follow your OpenCPN language, as everywhere else.
 
 ## 2. Own ship
 
