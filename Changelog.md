@@ -95,8 +95,9 @@ alpha: the drift model and its error figures are unreviewed.
 - The drift model and the uncertainty circle's default error values are
   **not verified for operational use** — see
   `docs/LEEWAY_NEEDS_VERIFICATION.md`.
-- The Windows, Debian 13 and Flatpak builds pass CI but have not been
-  loaded into a real OpenCPN yet.
+- Loaded and used in a real OpenCPN: the Windows, macOS and Ubuntu 26.04
+  builds. The Debian 12, Debian 13 and Flatpak builds pass CI but have
+  not been loaded into a real OpenCPN yet.
 
 ## [0.1.0-alpha] — 2026-09-04
 

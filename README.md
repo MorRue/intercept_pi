@@ -27,8 +27,7 @@ OpenCPN project, or any search-and-rescue authority.
 datum ageing (GRIB or manual drift, leeway optional), an uncertainty circle
 around the estimated position, a moving-target intercept solve, automatic
 recalculation, and chart marks and a course-to-steer route. Alpha: the
-drift model and its error figures are unreviewed, and the Windows build has
-not been run inside a real OpenCPN yet. See the
+drift model and its error figures are unreviewed. See the
 [user guide](docs/USER_GUIDE.md) and the [changelog](Changelog.md).
 
 ## Installing
