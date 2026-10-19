@@ -11,18 +11,27 @@ on:
 
 jobs:
   linux:
-    name: Linux (Debian ${{ matrix.debian }}, wxWidgets 3.2)
+    name: Linux (${{ matrix.label }}, wxWidgets 3.2)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # The tarball is labelled with the Debian version it was built on,
-        # and OpenCPN's plugin manager only accepts a label it knows for the
-        # host: a Debian 12 build on Debian 12 and Ubuntu 23.04-24.04 (Mint
-        # 22), a Debian 13 build on Debian 13 and Ubuntu 26.04. Both ship
-        # wxWidgets 3.2 in apt. Ubuntu 22.04 has no wx 3.2 package at all.
-        debian: [bookworm, trixie]
-    container: debian:${{ matrix.debian }}
+        # The tarball is labelled with the system it was built on, and
+        # OpenCPN's plugin manager only accepts a label it maps to the host
+        # (`is_debian_plugin_compatible` in OpenCPN's plugin_handler.cpp,
+        # unchanged from 5.8.4 to 5.14.2): a Debian 12 build on Debian 12
+        # and Ubuntu 23.04-24.04 (Mint 22); a Debian 13 build only on
+        # Debian 13. Any other Ubuntu needs a build labelled with its exact
+        # version, hence the Ubuntu 26.04 one. All three ship wxWidgets 3.2
+        # in apt; Ubuntu 22.04 has no wx 3.2 package at all.
+        include:
+          - { label: Debian bookworm, image: 'debian:bookworm', artifact: debian-bookworm }
+          - { label: Debian trixie, image: 'debian:trixie', artifact: debian-trixie }
+          - { label: Ubuntu 26.04, image: 'ubuntu:26.04', artifact: ubuntu-26.04 }
+    container: ${{ matrix.image }}
+    env:
+      # Ubuntu's tzdata asks for a time zone otherwise.
+      DEBIAN_FRONTEND: noninteractive
     steps:
       - name: Install toolchain and wxWidgets 3.2
         run: |
@@ -59,7 +68,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-${{ matrix.debian }}-x86_64-tarball
+          name: linux-${{ matrix.artifact }}-x86_64-tarball
           path: build/*.tar.gz
           if-no-files-found: error
           retention-days: 14

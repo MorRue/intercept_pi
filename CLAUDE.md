@@ -37,12 +37,15 @@ symbols — like a `ServiceLoader` entry point.
 - **Never cross-compile Windows with MinGW.** OpenCPN is MSVC-built and the
   plugin exports a C++ class with virtual functions; MinGW and MSVC disagree
   on vtable layout, name mangling and exceptions. It builds, then crashes.
-- **Linux CI builds in `debian:bookworm` and `debian:trixie` containers**
-  (glibc 2.36 / 2.41). The tarball is labelled with the Debian release it
+- **Linux CI builds in `debian:bookworm`, `debian:trixie` and
+  `ubuntu:26.04` containers.** The tarball is labelled with the system it
   was built on, and OpenCPN's plugin manager only accepts labels it maps to
   the host: Debian 12 builds on Debian 12 and Ubuntu 23.04–24.04 (Mint 22),
-  Debian 13 builds on Debian 13 and Ubuntu 26.04 (`is_debian_plugin_compatible`
-  in OpenCPN's `plugin_handler.cpp`). A Flathub-installed OpenCPN takes only
+  Debian 13 builds only on Debian 13 (`is_debian_plugin_compatible` in
+  OpenCPN's `plugin_handler.cpp`, the same from 5.8.4 to 5.14.2; only
+  OpenCPN master maps Debian 13 to Ubuntu 26.04). Any other Ubuntu needs a
+  build labelled with its exact version — confirmed on a real Ubuntu 26.04
+  with OpenCPN 5.14.2, which refused both Debian builds. A Flathub-installed OpenCPN takes only
   a `flatpak-x86_64` build made against its own runtime (the `flatpak`
   job). Never ship a locally built `.so` — release artifacts come from CI.
 - **GPLv3+**, inherited from the template.
@@ -179,8 +182,8 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Open items
 
-- **CI** (`build.yml`): Linux builds in `debian:bookworm` and
-  `debian:trixie` containers (wx 3.2 in apt) on every push and PR. The
+- **CI** (`build.yml`): Linux builds in `debian:bookworm`, `debian:trixie`
+  and `ubuntu:26.04` containers (wx 3.2 in apt) on every push and PR. The
   **Flatpak** build (flatpak-builder against Flathub's `org.opencpn.OpenCPN`,
   Freedesktop SDK `FLATPAK_SDK` — must match the runtime Flathub's OpenCPN
   uses, and the `sdk:` line in `flatpak/*.yaml`) runs only for `v*` tags and
