@@ -45,7 +45,7 @@ symbols — like a `ServiceLoader` entry point.
   OpenCPN's `plugin_handler.cpp`, the same from 5.8.4 to 5.14.2; only
   OpenCPN master maps Debian 13 to Ubuntu 26.04). Any other Ubuntu needs a
   build labelled with its exact version — confirmed on a real Ubuntu 26.04
-  with OpenCPN 5.14.2, which refused both Debian builds. A Flathub-installed OpenCPN takes only
+  with OpenCPN 5.12.4, which refused both Debian builds. A Flathub-installed OpenCPN takes only
   a `flatpak-x86_64` build made against its own runtime (the `flatpak`
   job). Never ship a locally built `.so` — release artifacts come from CI.
 - **GPLv3+**, inherited from the template.

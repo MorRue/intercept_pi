@@ -96,7 +96,7 @@ alpha: the drift model and its error figures are unreviewed.
   **not verified for operational use** — see
   `docs/LEEWAY_NEEDS_VERIFICATION.md`.
 - Loaded and used in a real OpenCPN: the Windows, macOS and Ubuntu 26.04
-  builds. The Debian 12, Debian 13 and Flatpak builds pass CI but have
+  builds (which OS and OpenCPN versions: see `docs/INSTALLING.md`). The Debian 12, Debian 13 and Flatpak builds pass CI but have
   not been loaded into a real OpenCPN yet.
 
 ## [0.1.0-alpha] — 2026-09-04

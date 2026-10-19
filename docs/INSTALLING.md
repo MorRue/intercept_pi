@@ -12,14 +12,18 @@ tracks it and you get a proper **Uninstall** button later.
 From the [releases page](https://github.com/MorRue/intercept_pi/releases),
 download the archive for your platform:
 
-| Platform | File |
-|---|---|
-| Linux: Debian 12, Ubuntu 23.04–24.04, Linux Mint 22 (x86-64) | `Intercept-<version>_debian-x86_64-12-x86_64.tar.gz` |
-| Linux: Debian 13 (x86-64) | `Intercept-<version>_debian-x86_64-13-x86_64.tar.gz` |
-| Linux: Ubuntu 26.04 (x86-64) | `Intercept-<version>_ubuntu-x86_64-26.04-x86_64.tar.gz` |
-| Linux: OpenCPN installed as a Flatpak (Flathub), any distribution (x86-64) | `Intercept-<version>_flatpak-x86_64-25.08-x86_64.tar.gz` |
-| Windows (32-bit — matches OpenCPN's official build) | `Intercept-<version>_msvc-wx32-…​.tar.gz` |
-| macOS 11+ (Apple Silicon and Intel) | `Intercept-<version>_darwin-wx32-11-arm64-x86_64.tar.gz` |
+| Platform | File | Tested by hand (v0.2.0-alpha) |
+|---|---|---|
+| Linux: Debian 12, Ubuntu 23.04–24.04, Linux Mint 22 (x86-64) | `Intercept-<version>_debian-x86_64-12-x86_64.tar.gz` | Not yet (v0.1.0-alpha: on Ubuntu 24.04) |
+| Linux: Debian 13 (x86-64) | `Intercept-<version>_debian-x86_64-13-x86_64.tar.gz` | Not yet |
+| Linux: Ubuntu 26.04 (x86-64) | `Intercept-<version>_ubuntu-x86_64-26.04-x86_64.tar.gz` | Ubuntu 26.04.1, OpenCPN 5.12.4 |
+| Linux: OpenCPN installed as a Flatpak (Flathub), any distribution (x86-64) | `Intercept-<version>_flatpak-x86_64-25.08-x86_64.tar.gz` | Not yet |
+| Windows (32-bit — matches OpenCPN's official build) | `Intercept-<version>_msvc-wx32-…​.tar.gz` | Windows 11, OpenCPN 5.14.2 |
+| macOS 11+ (Apple Silicon and Intel) | `Intercept-<version>_darwin-wx32-11-arm64-x86_64.tar.gz` | macOS 27.0.1, OpenCPN 5.14.2 |
+
+"Tested by hand" means the tarball was imported into that OpenCPN, loaded
+and used. Every file is built and unit-tested by CI; "Not yet" means nobody
+has loaded it into a real OpenCPN for this version.
 
 On Linux, pick by how OpenCPN was installed, not only by distribution: if
 it came from Flathub (on Linux Mint the Software Manager often installs
