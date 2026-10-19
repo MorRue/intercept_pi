@@ -14,9 +14,18 @@ download the archive for your platform:
 
 | Platform | File |
 |---|---|
-| Linux (x86-64, glibc ≥ 2.36 — Debian 12+, Ubuntu 22.04+) | `Intercept-<version>_debian-x86_64-…​.tar.gz` |
+| Linux: Debian 12, Ubuntu 23.04–24.04, Linux Mint 22 (x86-64) | `Intercept-<version>_debian-x86_64-12-x86_64.tar.gz` |
+| Linux: Debian 13, Ubuntu 26.04 (x86-64) | `Intercept-<version>_debian-x86_64-13-x86_64.tar.gz` |
+| Linux: OpenCPN installed as a Flatpak (Flathub), any distribution (x86-64) | `Intercept-<version>_flatpak-x86_64-25.08-x86_64.tar.gz` |
 | Windows (32-bit — matches OpenCPN's official build) | `Intercept-<version>_msvc-wx32-…​.tar.gz` |
 | macOS 11+ (Apple Silicon and Intel) | `Intercept-<version>_darwin-wx32-11-arm64-x86_64.tar.gz` |
+
+On Linux, pick by how OpenCPN was installed, not only by distribution: if
+it came from Flathub (on Linux Mint the Software Manager often installs
+that one; `flatpak list` shows `org.opencpn.OpenCPN`), take the Flatpak
+file. Otherwise take the Debian file for your release. OpenCPN refuses a
+file built for another system. Ubuntu 22.04 and Linux Mint 21 are not
+supported: they have no wxWidgets 3.2.
 
 Do **not** unpack it. OpenCPN reads the `.tar.gz` directly.
 

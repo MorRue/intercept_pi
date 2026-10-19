@@ -11,12 +11,18 @@ on:
 
 jobs:
   linux:
-    name: Linux (Debian bookworm, wxWidgets 3.2)
+    name: Linux (Debian ${{ matrix.debian }}, wxWidgets 3.2)
     runs-on: ubuntu-latest
-    # bookworm ships wxWidgets 3.2 in apt and has an older glibc (2.36) than
-    # the ubuntu-latest runner, so the artifact loads on more crew machines.
-    # Ubuntu 22.04 has no wx 3.2 package at all — that was the old failure.
-    container: debian:bookworm
+    strategy:
+      fail-fast: false
+      matrix:
+        # The tarball is labelled with the Debian version it was built on,
+        # and OpenCPN's plugin manager only accepts a label it knows for the
+        # host: a Debian 12 build on Debian 12 and Ubuntu 23.04-24.04 (Mint
+        # 22), a Debian 13 build on Debian 13 and Ubuntu 26.04. Both ship
+        # wxWidgets 3.2 in apt. Ubuntu 22.04 has no wx 3.2 package at all.
+        debian: [bookworm, trixie]
+    container: debian:${{ matrix.debian }}
     steps:
       - name: Install toolchain and wxWidgets 3.2
         run: |
@@ -53,7 +59,60 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x86_64-tarball
+          name: linux-${{ matrix.debian }}-x86_64-tarball
+          path: build/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  flatpak:
+    name: Flatpak (OpenCPN from Flathub)
+    # For OpenCPN installed as a Flatpak (Flathub; on Linux Mint the
+    # Software Manager often offers this one). Such an OpenCPN only accepts
+    # a plugin built inside the same Flatpak runtime, so the plugin is
+    # built with flatpak-builder against Flathub's org.opencpn.OpenCPN.
+    # That pulls about 1 GB of SDK and app on every run, so like macOS it
+    # runs only for a release tag, or by hand: Actions -> build ->
+    # "Run workflow".
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    env:
+      # Must match the Freedesktop SDK of the OpenCPN on Flathub's stable
+      # branch (`runtime-version` in flathub/org.opencpn.OpenCPN's
+      # manifest). When Flathub moves OpenCPN to a newer runtime, update
+      # this and the `sdk:` line in flatpak/*.yaml.
+      FLATPAK_SDK: '25.08'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            flatpak flatpak-builder cmake gettext
+
+      - name: Install the Freedesktop SDK and OpenCPN from Flathub
+        run: |
+          flatpak remote-add --user --if-not-exists \
+            flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive \
+            flathub "org.freedesktop.Sdk//$FLATPAK_SDK" org.opencpn.OpenCPN
+
+      - name: Configure
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          "-DOCPN_TARGET_TUPLE=flatpak-x86_64;$FLATPAK_SDK;x86_64"
+
+      - name: Build tarball
+        # Not in parallel: the template says make becomes unreliable.
+        run: cmake --build build --target flatpak -j1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-x86_64-tarball
           path: build/*.tar.gz
           if-no-files-found: error
           retention-days: 14
@@ -207,7 +266,7 @@ jobs:
 
   release:
     name: Release
-    needs: [linux, windows, macos]
+    needs: [linux, flatpak, windows, macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

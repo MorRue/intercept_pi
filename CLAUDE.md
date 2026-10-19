@@ -37,9 +37,14 @@ symbols — like a `ServiceLoader` entry point.
 - **Never cross-compile Windows with MinGW.** OpenCPN is MSVC-built and the
   plugin exports a C++ class with virtual functions; MinGW and MSVC disagree
   on vtable layout, name mangling and exceptions. It builds, then crashes.
-- **Linux CI builds in a `debian:bookworm` container** (glibc 2.36) so the
-  artifact loads on more crew machines than one built on the newer CI host or
-  a dev box. Never ship a locally built `.so` — release artifacts come from CI.
+- **Linux CI builds in `debian:bookworm` and `debian:trixie` containers**
+  (glibc 2.36 / 2.41). The tarball is labelled with the Debian release it
+  was built on, and OpenCPN's plugin manager only accepts labels it maps to
+  the host: Debian 12 builds on Debian 12 and Ubuntu 23.04–24.04 (Mint 22),
+  Debian 13 builds on Debian 13 and Ubuntu 26.04 (`is_debian_plugin_compatible`
+  in OpenCPN's `plugin_handler.cpp`). A Flathub-installed OpenCPN takes only
+  a `flatpak-x86_64` build made against its own runtime (the `flatpak`
+  job). Never ship a locally built `.so` — release artifacts come from CI.
 - **GPLv3+**, inherited from the template.
 - **No custom chart drawing.** Everything the plugin shows on the chart is
   an OpenCPN object — marks, routes, tracks, and waypoint range rings —
@@ -174,9 +179,15 @@ trees and configure again; git itself survives a rename untouched.
 
 ## Open items
 
-- **CI** (`build.yml`): Linux builds in a `debian:bookworm` container (wx 3.2
-  in apt) on every push and PR. Windows (MSVC Win32, prebuilt wxWidgets 3.2.6,
-  gettext pinned by URL + SHA-256 from mlocati/gettext-iconv-windows) also runs on every push/PR for now — it's ~2 min with
+- **CI** (`build.yml`): Linux builds in `debian:bookworm` and
+  `debian:trixie` containers (wx 3.2 in apt) on every push and PR. The
+  **Flatpak** build (flatpak-builder against Flathub's `org.opencpn.OpenCPN`,
+  Freedesktop SDK `FLATPAK_SDK` — must match the runtime Flathub's OpenCPN
+  uses, and the `sdk:` line in `flatpak/*.yaml`) runs only for `v*` tags and
+  `workflow_dispatch`, since it downloads ~1 GB per run. Windows (MSVC
+  Win32, prebuilt wxWidgets 3.2.6, gettext pinned by URL + SHA-256 from
+  mlocati/gettext-iconv-windows) also runs on every push/PR for now — it's
+  ~2 min with
   the wx binaries cached, but it counts 2× against the private-repo Actions
   budget, so consider narrowing it to tags + `workflow_dispatch` if minutes
   get tight. **macOS** (universal arm64 + x86_64, macOS 11+, OpenCPN's

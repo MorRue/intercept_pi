@@ -6,6 +6,9 @@ All notable changes to the Intercept plugin. This project follows
 ## [Unreleased]
 
 ### Added
+- Two more Linux builds: one for Debian 13 (also Ubuntu 26.04), and a
+  Flatpak build for OpenCPN installed from Flathub. The existing Debian 12
+  build covers Ubuntu 23.04-24.04 and Linux Mint 22.
 - Leeway on/off: with a GRIB file, "Leeway: include" chooses whether the
   target drifts with the current plus leeway, or with the current alone for
   an operator who doesn't trust the unverified leeway figures. With leeway

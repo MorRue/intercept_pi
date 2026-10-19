@@ -62,8 +62,10 @@ unmanaged, so there is no Uninstall button — see
 
 ## Platform support
 
-Linux and Windows, built in CI on every push; macOS (universal: Apple
-Silicon and Intel, macOS 11+) for every release. The Windows build is
+Linux (Debian 12 and 13 builds, which also cover Ubuntu 23.04–24.04,
+Linux Mint 22 and Ubuntu 26.04) and Windows, built in CI on every push;
+macOS (universal: Apple Silicon and Intel, macOS 11+) and a Flatpak build
+(for OpenCPN from Flathub) for every release. The Windows build is
 32-bit because OpenCPN's official Windows binary is 32-bit; a 64-bit plugin
 will not load.
 
