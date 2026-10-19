@@ -23,11 +23,13 @@ OpenCPN project, or any search-and-rescue authority.
 
 ## Status
 
-**v0.1.0-alpha** — a working plugin with a non-modal input/output panel,
-datum ageing (GRIB or manual drift), a moving-target intercept solve, and
-chart marks and a course-to-steer route. Alpha: the drift model is
-unreviewed and the Windows build has not been run inside a real OpenCPN
-yet.
+**v0.2.0-alpha** — a working plugin with a non-modal input/output panel,
+datum ageing (GRIB or manual drift, leeway optional), an uncertainty circle
+around the estimated position, a moving-target intercept solve, automatic
+recalculation, and chart marks and a course-to-steer route. Alpha: the
+drift model and its error figures are unreviewed, and the Windows build has
+not been run inside a real OpenCPN yet. See the
+[user guide](docs/USER_GUIDE.md) and the [changelog](Changelog.md).
 
 ## Installing
 

@@ -5,7 +5,16 @@ All notable changes to the Intercept plugin. This project follows
 
 ## [Unreleased]
 
+## [0.2.0-alpha] — 2026-10-19
+
+The panel now also shows how uncertain the estimated position is, can
+recalculate on its own, and keeps OpenCPN navigating while it does. Still
+alpha: the drift model and its error figures are unreviewed.
+
 ### Added
+- A user guide, `docs/USER_GUIDE.md`, walking through every part of the
+  panel and the chart objects, with screenshots.
+- A macOS build (universal: Apple Silicon and Intel, macOS 11+).
 - Three more Linux builds: Debian 13, Ubuntu 26.04, and a Flatpak build
   for OpenCPN installed from Flathub. The existing Debian 12 build covers
   Ubuntu 23.04-24.04 and Linux Mint 22.
@@ -82,6 +91,13 @@ All notable changes to the Intercept plugin. This project follows
   positions everywhere else. Before, they were always degrees and decimal
   minutes.
 
+### Notes
+- The drift model and the uncertainty circle's default error values are
+  **not verified for operational use** — see
+  `docs/LEEWAY_NEEDS_VERIFICATION.md`.
+- The Windows, Debian 13 and Flatpak builds pass CI but have not been
+  loaded into a real OpenCPN yet.
+
 ## [0.1.0-alpha] — 2026-09-04
 
 First public build. Alpha: functional, but the drift model is unreviewed
@@ -114,5 +130,6 @@ and the Windows build has not been run inside a real OpenCPN yet.
   OpenCPN; the `WX_DEFINE_LIST` workaround for the plugin API's route list
   is compile-tested only.
 
-[Unreleased]: https://github.com/MorRue/intercept_pi/compare/v0.1.0-alpha...HEAD
+[Unreleased]: https://github.com/MorRue/intercept_pi/compare/v0.2.0-alpha...HEAD
+[0.2.0-alpha]: https://github.com/MorRue/intercept_pi/compare/v0.1.0-alpha...v0.2.0-alpha
 [0.1.0-alpha]: https://github.com/MorRue/intercept_pi/releases/tag/v0.1.0-alpha

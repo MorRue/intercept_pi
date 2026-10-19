@@ -37,7 +37,7 @@ set(OCPN_RELEASE_REPO
 # -------  Plugin setup --------
 #
 set(PKG_NAME intercept_pi)
-set(PKG_VERSION 0.1.0) # Major.Minor.Patch
+set(PKG_VERSION 0.2.0) # Major.Minor.Patch
 set(PKG_PRERELEASE "alpha")  # Empty, or a tag like 'alpha' / 'beta'
 
 set(DISPLAY_NAME Intercept)    # Dialogs, installer artifacts, ...
