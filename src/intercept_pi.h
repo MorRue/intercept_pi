@@ -17,6 +17,7 @@
 #endif
 #include <wx/datetime.h>
 
+#include <cstdint>  // ocpn_plugin.h uses uint64_t/uint8_t but doesn't include it
 #include <optional>
 #include <vector>
 
