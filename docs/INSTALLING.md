@@ -30,7 +30,11 @@ Linux Mint 21 are not supported: they have no wxWidgets 3.2. Ubuntu 25.04
 and 25.10 have no file of their own and OpenCPN accepts none of the others
 there.
 
-Do **not** unpack it. OpenCPN reads the `.tar.gz` directly.
+Do **not** unpack it. OpenCPN reads the `.tar.gz` directly. If OpenCPN
+says "missing metadata.xml?", the file you picked is not the `.tar.gz` as
+downloaded: Safari on macOS unpacks downloads by itself unless "Open 'safe'
+files after downloading" is off (Safari → Settings → General), and a
+double-click unpacks it too. Download it again and pick the `.tar.gz`.
 
 Requires OpenCPN **5.8 or newer** (plugin API 1.18).
 
